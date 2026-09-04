@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#10110d" />
+  <title>Songmore — guess your own songs</title>
+  <meta name="description" content="Hear one second of a song from your playlist. Guess it. Intro or mid. Spotify, Apple Music, YouTube Music." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect fill='%2310110d' width='64' height='64'/><circle cx='32' cy='32' r='18' fill='none' stroke='%23d6ff3f' stroke-width='4'/><circle cx='32' cy='32' r='4' fill='%23d6ff3f'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <audio id="player" preload="auto"></audio>
+
+  <div id="app">
+    <header class="top">
+      <a class="mark" href="./" id="home-link">songmore</a>
+      <p class="tag">your songs. one second. guess.</p>
+    </header>
+
+    <section id="view-home" class="view">
+      <div class="hero">
+        <p class="kicker">A music quiz that uses <em>your</em> library</p>
+        <h1>Hear a blink of a track.<br />Name it before it grows.</h1>
+        <p class="lede">
+          Same idea as Songless: a tiny clip, then you guess.
+          The twist is we rotate through <strong>your</strong> Liked Songs / playlists —
+          Spotify, or a paste from Apple Music / YouTube Music.
+        </p>
+      </div>
+
+      <div class="panel">
+        <div class="row-label">Clip mode</div>
+        <div class="seg" role="tablist" aria-label="Clip mode">
+          <button type="button" class="seg-btn is-on" data-mode="start">Start</button>
+          <button type="button" class="seg-btn" data-mode="mid">Mid</button>
+        </div>
+        <p class="hint" id="mode-hint">Plays from the beginning of the 30s preview clip.</p>
+      </div>
+
+      <div class="panel">
+        <div class="row-label">Where the songs come from</div>
+        <div class="sources">
+          <button type="button" class="source" data-source="demo">
+            <span class="source-name">Radio hits</span>
+            <span class="source-desc">Built-in mix. Play instantly.</span>
+          </button>
+          <button type="button" class="source" data-source="paste">
+            <span class="source-name">Paste a playlist</span>
+            <span class="source-desc">YouTube Music link, or a list of songs.</span>
+          </button>
+          <button type="button" class="source" data-source="spotify">
+            <span class="source-name">Spotify</span>
+            <span class="source-desc">Login, or transfer to YouTube Music first.</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="paste-box" class="panel extra" hidden>
+        <div class="row-label">Link or list</div>
+        <p class="hint">
+          Paste a <strong>public</strong> YouTube / YouTube Music playlist URL, or songs as <code>Song – Artist</code>.
+          Coming from Spotify? Move the playlist with
+          <a href="https://www.tunemymusic.com/transfer/spotify-to-youtube-music" target="_blank" rel="noreferrer">TuneMyMusic</a>,
+          make the new YouTube Music playlist public, then paste that link here.
+        </p>
+        <textarea id="paste-input" rows="8" placeholder="https://music.youtube.com/playlist?list=…&#10;&#10;or&#10;&#10;Blinding Lights – The Weeknd&#10;Mr. Brightside – The Killers"></textarea>
+        <button type="button" class="btn lime" id="paste-go">Use this playlist</button>
+        <p class="hint" id="paste-status"></p>
+      </div>
+
+      <div id="spotify-box" class="panel extra" hidden>
+        <div class="row-label">Spotify</div>
+        <p class="hint" id="spotify-player-hint">
+          Log in if the Spotify API is available on this app.
+          Easier path: copy the playlist to YouTube Music with
+          <a href="https://www.tunemymusic.com/transfer/spotify-to-youtube-music" target="_blank" rel="noreferrer">TuneMyMusic</a>,
+          then use <strong>Paste a playlist</strong>.
+        </p>
+        <div id="spotify-setup">
+          <p class="hint">
+            One-time setup for you, not for players. Create an app at
+            <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">developer.spotify.com/dashboard</a>,
+            add this Redirect URI, put the Client ID in <code>config.js</code>.
+          </p>
+          <p class="uri" id="redirect-uri"></p>
+          <label class="field">
+            <span>Client ID (owner only)</span>
+            <input id="spotify-id" type="text" autocomplete="off" spellcheck="false" placeholder="paste your Spotify client id" />
+          </label>
+        </div>
+        <button type="button" class="btn lime" id="spotify-login">Log in with Spotify</button>
+        <p class="hint" id="spotify-status"></p>
+        <div id="playlist-list" class="plist" hidden></div>
+      </div>
+    </section>
+
+    <section id="view-game" class="view" hidden>
+      <div class="game-bar">
+        <button type="button" class="text-btn" id="quit">← setup</button>
+        <div class="stats">
+          <span id="stat-mode">start</span>
+          <span id="stat-round">1 / 1</span>
+          <span id="stat-score">0 pts</span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="disc-wrap" id="disc-wrap">
+          <div class="disc" id="disc">
+            <div class="disc-art" id="disc-art"></div>
+            <div class="disc-grooves"></div>
+            <div class="disc-hole"></div>
+          </div>
+          <div class="bars" id="bars" aria-hidden="true"></div>
+        </div>
+        <p class="clip-meta" id="clip-meta">1.0s · start</p>
+        <button type="button" class="play-btn" id="play-btn">
+          <span class="play-icon">▶</span>
+          <span id="play-label">Play 1 second</span>
+        </button>
+      </div>
+
+      <div class="guess-wrap">
+        <label class="field">
+          <span>Guess the track</span>
+          <input id="guess" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Start typing a title or artist…" />
+        </label>
+        <ul id="suggest" class="suggest" hidden></ul>
+        <div class="actions">
+          <button type="button" class="btn lime" id="submit">Guess</button>
+          <button type="button" class="btn ghost" id="skip">Hear more</button>
+          <button type="button" class="btn ghost" id="giveup">Reveal</button>
+        </div>
+        <p class="hint" id="game-hint">Wrong guess or “hear more” unlocks a longer clip.</p>
+      </div>
+    </section>
+
+    <div id="reveal" class="reveal" hidden>
+      <div class="reveal-card">
+        <img id="reveal-art" class="reveal-art" alt="" hidden />
+        <p class="reveal-kicker" id="reveal-kicker">Correct</p>
+        <h2 id="reveal-title"></h2>
+        <p id="reveal-artist"></p>
+        <p class="reveal-score" id="reveal-score"></p>
+        <button type="button" class="btn lime" id="next-btn">Next track</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <p>Clips are 30-second store previews. We never stream the full song. Open this folder with a local server if Spotify login is used.</p>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
