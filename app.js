@@ -1,5 +1,6 @@
 (() => {
   const CLIP_STEPS = [1, 2, 4, 7, 11, 16];
+  const CLIP_START = 5;
   const SONG_MAX = 1000;
   const SEC_COST = 100;
   const MISS_COST = 100;
@@ -581,10 +582,10 @@
   function playYtClipNow(videoId) {
     if (!ytPlayer || !ytPlayer.loadVideoById) return false;
     const len = clipLen();
-    let start = 0;
+    let start = CLIP_START;
     if (state.mode === "mid") {
       const dur = ytPlayer.getDuration && ytPlayer.getDuration();
-      start = dur && dur > len + 4 ? Math.max(0, dur * 0.45) : 40;
+      start = dur && dur > CLIP_START + len + 4 ? Math.max(CLIP_START, dur * 0.45) : 45;
     }
     try { ytPlayer.unMute(); ytPlayer.setVolume(100); } catch { /* ignore */ }
     ytPlayer.loadVideoById({
@@ -1125,8 +1126,8 @@
       state.mode = btn.dataset.mode;
       document.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("is-on", b === btn));
       $("mode-hint").textContent = state.mode === "start"
-        ? "Plays from the beginning of the 30s preview clip."
-        : "Drops you into the middle of the 30s preview clip.";
+        ? "Starts 5 seconds in, so you skip the silent intro."
+        : "Drops you into the middle of the track.";
     });
   });
 
