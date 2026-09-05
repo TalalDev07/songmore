@@ -14,7 +14,12 @@
   const player = $("player");
   let ytPlayer = null;
   let ytApiReady = null;
+  let ytPlayerReady = false;
+  let ytPlayerWait = null;
   let ytReadyVideo = "";
+  let ytStartedVideo = "";
+  let ytWantPlay = false;
+  let ytPlayGen = 0;
   const previewCache = new Map();
   let stopTimer = 0;
   let suggestIndex = 0;
@@ -80,6 +85,7 @@
 
   function stopClip() {
     clearTimeout(stopTimer);
+    ytWantPlay = false;
     player.pause();
     try {
       if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
@@ -224,6 +230,7 @@
       const go = btn.dataset.go;
       btn.classList.toggle("is-on", (id === "game" || id === "results") ? go === state.kind : go === id);
     });
+    document.body.classList.toggle("is-game", id === "game");
   }
 
   function setHash(path) {
@@ -569,9 +576,16 @@
   }
 
   function ensureYtPlayer() {
-    return loadYtApi().then(() => new Promise((resolve) => {
-      if (ytPlayer && ytPlayer.playVideo) {
+    if (ytPlayer && ytPlayerReady) return Promise.resolve(ytPlayer);
+    if (ytPlayerWait) return ytPlayerWait;
+    ytPlayerWait = loadYtApi().then(() => new Promise((resolve, reject) => {
+      if (ytPlayer && ytPlayerReady) {
         resolve(ytPlayer);
+        return;
+      }
+      if (!document.getElementById("yt-player")) {
+        ytPlayerWait = null;
+        reject(new Error("YouTube player missing."));
         return;
       }
       ytPlayer = new window.YT.Player("yt-player", {
@@ -588,10 +602,23 @@
           origin: location.origin
         },
         events: {
-          onReady: () => resolve(ytPlayer)
+          onReady: () => {
+            ytPlayerReady = true;
+            const game = $("view-game");
+            if (game && !game.hidden) paintClipMeta();
+            resolve(ytPlayer);
+          },
+          onStateChange: (e) => {
+            if (e.data === 1) setSpin(true);
+            else if (e.data === 2 || e.data === 0) setSpin(false);
+            if (ytWantPlay && e.data === 5) {
+              try { ytPlayer.playVideo(); } catch { /* ignore */ }
+            }
+          }
         }
       });
     }));
+    return ytPlayerWait;
   }
 
   function cueTrack(videoId) {
@@ -613,25 +640,32 @@
   }
 
   function playYtClipNow(videoId) {
-    if (!ytPlayer || !ytPlayer.playVideo) return false;
+    if (!ytPlayer || !ytPlayerReady || !ytPlayer.playVideo) return false;
     const start = clipStart();
     const len = clipLen();
+    ytWantPlay = true;
     try {
       ytPlayer.unMute();
       ytPlayer.setVolume(100);
-      if (ytReadyVideo !== videoId) {
+      const already = ytReadyVideo === videoId && ytStartedVideo === videoId;
+      if (!already) {
         ytPlayer.loadVideoById({ videoId, startSeconds: start });
         ytReadyVideo = videoId;
+        ytStartedVideo = videoId;
       } else {
         ytPlayer.seekTo(start, true);
       }
       ytPlayer.playVideo();
     } catch {
+      ytWantPlay = false;
       return false;
     }
     setSpin(true);
     clearTimeout(stopTimer);
+    const gen = ++ytPlayGen;
     stopTimer = setTimeout(() => {
+      if (gen !== ytPlayGen) return;
+      ytWantPlay = false;
       try { ytPlayer.pauseVideo(); } catch { /* ignore */ }
       setSpin(false);
     }, len * 1000 + 80);
@@ -687,10 +721,14 @@
       $("game-hint").textContent = "Each extra second costs 100. A miss costs 100 and unlocks more.";
       return;
     }
-    $("game-hint").textContent = "Starting player… tap Play again.";
+    $("game-hint").textContent = "Starting player…";
+    $("play-btn").disabled = true;
     ensureYtPlayer().then(() => {
+      $("play-btn").disabled = false;
       if (ytId(state.current) === id) playYtClipNow(id);
+      paintClipMeta();
     }).catch(() => {
+      $("play-btn").disabled = false;
       $("game-hint").textContent = "YouTube player failed to load. Refresh and try again.";
     });
   }
@@ -699,7 +737,10 @@
     const len = clipLen();
     const worth = songValue();
     $("clip-meta").textContent = `${len.toFixed(1)}s · worth ${worth}`;
-    $("play-label").textContent = `Play ${len} second${len === 1 ? "" : "s"}`;
+    $("play-btn").disabled = !ytPlayerReady;
+    $("play-label").textContent = ytPlayerReady
+      ? `Play ${len} second${len === 1 ? "" : "s"}`
+      : "Get ready…";
     $("stat-kind").textContent = state.practice ? "practice" : state.kind;
     $("stat-round").textContent = `${state.qi + 1} / ${state.queue.length}`;
     $("stat-score").textContent = `${state.score}`;
@@ -957,9 +998,9 @@
       banner.hidden = true;
     }
     setupStatus("");
+    await ensureYtPlayer().catch(() => {});
     show("game");
     setHash("/play");
-    await ensureYtPlayer().catch(() => {});
     dealRound();
     return true;
   }
@@ -1078,6 +1119,7 @@
       card.blur();
     }
     try {
+      ensureYtPlayer().catch(() => {});
       homeStatus("Loading today’s playlist…");
       const rec = readDaily();
       if (rec?.finished && !practice) {
@@ -1097,7 +1139,6 @@
         return;
       }
       const tracks = await loadDailyPlaylist();
-      loadYtApi().catch(() => {});
       let queue = [];
       let reserve = [];
       if (rec?.queue?.length && !practice && !rec.finished) {
@@ -1315,7 +1356,7 @@
 
   fillBars();
   paintHome();
-  loadYtApi().catch(() => {});
+  ensureYtPlayer().catch(() => {});
   clockTimer = setInterval(() => {
     paintCountdown($("daily-countdown"));
     paintCountdown($("results-countdown"));

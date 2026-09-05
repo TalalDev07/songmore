@@ -39,6 +39,18 @@ body {
 a { color: var(--lime); }
 code { font-family: ui-monospace, monospace; font-size: 0.92em; }
 
+.yt-audio {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 200px;
+  height: 200px;
+  clip-path: inset(50%);
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
 #app {
   width: min(880px, calc(100% - 32px));
   margin: 0 auto;
@@ -520,13 +532,15 @@ textarea { resize: vertical; min-height: 160px; }
 
 .foot {
   width: min(880px, calc(100% - 32px));
-  margin: 0 auto 16px;
+  margin: 48px auto 16px;
   color: var(--muted);
   font-size: 0.8rem;
   line-height: 1.45;
   position: relative;
   z-index: 1;
 }
+body.is-game .foot { display: none; }
+#view-game { padding-bottom: 32px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes bounce {
