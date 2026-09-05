@@ -535,54 +535,6 @@
     return new Promise((r) => setTimeout(r, ms));
   }
 
-  async function deezerSongs(term) {
-    const url = "https://api.deezer.com/search?q=" + encodeURIComponent(term) + "&limit=8";
-    try {
-      const res = await fetch(url, {
-        signal: (typeof AbortSignal !== "undefined" && AbortSignal.timeout)
-          ? AbortSignal.timeout(8000)
-          : undefined
-      });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return (data.data || []).map((r) => ({
-        previewUrl: r.preview,
-        trackName: r.title,
-        artistName: (r.artist && r.artist.name) || "",
-        artworkUrl100: (r.album && (r.album.cover_medium || r.album.cover_big)) || ""
-      }));
-    } catch {
-      throw new Error("lookup");
-    }
-  }
-
-  async function itunesSongs(term) {
-    const url = "https://itunes.apple.com/search?term=" + encodeURIComponent(term) + "&entity=song&limit=10";
-    let lastErr = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const res = await fetch(url, {
-          signal: (typeof AbortSignal !== "undefined" && AbortSignal.timeout)
-            ? AbortSignal.timeout(8000)
-            : undefined
-        });
-        if (res.status === 429 || res.status >= 500) {
-          lastErr = new Error("lookup");
-          await sleep(350 * (attempt + 1));
-          continue;
-        }
-        if (!res.ok) return [];
-        const data = await res.json();
-        return data.results || [];
-      } catch (err) {
-        lastErr = err;
-        await sleep(300 * (attempt + 1));
-      }
-    }
-    if (lastErr) throw new Error("lookup");
-    return [];
-  }
-
   function loadYtApi() {
     if (window.YT && window.YT.Player) return Promise.resolve();
     if (ytApiReady) return ytApiReady;
@@ -626,83 +578,33 @@
     }));
   }
 
-  async function playYtClip(videoId) {
-    const yt = await ensureYtPlayer();
+  function playYtClipNow(videoId) {
+    if (!ytPlayer || !ytPlayer.loadVideoById) return false;
     const len = clipLen();
     let start = 0;
     if (state.mode === "mid") {
-      const dur = yt.getDuration && yt.getDuration();
-      start = dur && dur > len + 4 ? Math.max(0, dur * 0.45) : 45;
+      const dur = ytPlayer.getDuration && ytPlayer.getDuration();
+      start = dur && dur > len + 4 ? Math.max(0, dur * 0.45) : 40;
     }
-    yt.loadVideoById({
+    try { ytPlayer.unMute(); ytPlayer.setVolume(100); } catch { /* ignore */ }
+    ytPlayer.loadVideoById({
       videoId,
       startSeconds: start,
       endSeconds: start + len
     });
-    yt.playVideo();
+    try { ytPlayer.playVideo(); } catch { /* ignore */ }
     setSpin(true);
     clearTimeout(stopTimer);
     stopTimer = setTimeout(() => {
-      try { yt.pauseVideo(); } catch { /* ignore */ }
+      try { ytPlayer.pauseVideo(); } catch { /* ignore */ }
       setSpin(false);
     }, len * 1000 + 120);
+    return true;
   }
 
-  async function resolvePreview(track) {
-    if (canPlay(track)) return track;
-    const key = norm(track.title) + "|" + norm(track.artist);
-    if (previewCache.has(key)) {
-      const cached = previewCache.get(key);
-      if (cached === "miss") throw new Error("no preview");
-      Object.assign(track, cached);
-      return track;
-    }
-    const queries = [];
-    if (track.artist && norm(track.artist) !== "unknown") {
-      queries.push(track.title + " " + track.artist);
-      queries.push('"' + track.title + '" ' + track.artist);
-    } else {
-      queries.push(track.title);
-    }
-
-    let best = null;
-    let bestScore = 0;
-    let lookupFailed = false;
-    const seen = new Set();
-    const searchers = [itunesSongs, deezerSongs];
-    for (const search of searchers) {
-      for (const q of queries) {
-        try {
-          const rows = await search(q);
-          for (const r of rows) {
-            if (!r.previewUrl || seen.has(r.previewUrl)) continue;
-            seen.add(r.previewUrl);
-            const s = previewAcceptable(track, r);
-            if (s > bestScore) {
-              bestScore = s;
-              best = r;
-            }
-          }
-        } catch {
-          lookupFailed = true;
-        }
-        if (bestScore >= 60) break;
-      }
-      if (bestScore >= 60) break;
-    }
-    if (!best && lookupFailed) throw new Error("lookup");
-    if (!best) {
-      previewCache.set(key, "miss");
-      throw new Error("no preview");
-    }
-    const extra = {
-      preview: best.previewUrl,
-      art: art(best.artworkUrl100 || ""),
-      itunesTitle: best.trackName
-    };
-    previewCache.set(key, extra);
-    Object.assign(track, extra);
-    return track;
+  function resolvePreview(track) {
+    if (ytId(track)) return Promise.resolve(track);
+    return Promise.reject(new Error("no preview"));
   }
 
   function startOffset() {
@@ -737,49 +639,24 @@
     });
   }
 
-  async function playClip() {
+  function playClip() {
     const id = ytId(state.current);
-    if (id) {
-      clearTimeout(stopTimer);
-      player.pause();
-      await playYtClip(id);
+    if (!id) {
+      $("game-hint").textContent = "This track has no YouTube clip.";
       return;
     }
-    if (!state.current?.preview) return;
+    player.pause();
     clearTimeout(stopTimer);
-    try { if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); } catch { /* ignore */ }
-    await loadAudio(state.current.preview);
-    const start = startOffset();
-    player.currentTime = start;
-    const endAt = start + clipLen();
-    const stopAtEnd = () => {
-      if (player.currentTime >= endAt - 0.03) {
-        player.pause();
-        player.removeEventListener("timeupdate", stopAtEnd);
-        setSpin(false);
-      }
-    };
-    player.removeEventListener("timeupdate", stopAtEnd);
-    player.addEventListener("timeupdate", stopAtEnd);
-    const go = async () => {
-      try {
-        await player.play();
-        setSpin(true);
-      } catch {
-        setSpin(false);
-      }
-      clearTimeout(stopTimer);
-      stopTimer = setTimeout(() => {
-        player.pause();
-        player.removeEventListener("timeupdate", stopAtEnd);
-        setSpin(false);
-      }, clipLen() * 1000 + 80);
-    };
-    if (Math.abs(player.currentTime - start) > 0.2) {
-      player.addEventListener("seeked", go, { once: true });
-    } else {
-      go();
+    if (playYtClipNow(id)) {
+      $("game-hint").textContent = "Each extra second costs 100. A miss costs 100 and unlocks more.";
+      return;
     }
+    $("game-hint").textContent = "Starting player… tap Play again.";
+    ensureYtPlayer().then(() => {
+      if (ytId(state.current) === id) playYtClipNow(id);
+    }).catch(() => {
+      $("game-hint").textContent = "YouTube player failed to load. Refresh and try again.";
+    });
   }
 
   function paintClipMeta() {
@@ -986,50 +863,13 @@
   async function collectPlayable(pool, want, onProgress, opts) {
     const explore = !!(opts && opts.explore);
     const recent = new Set(loadRecent());
+    const yt = pool.filter((t) => ytId(t));
     const fresh = [];
     const seen = [];
-    pool.forEach((t) => (recent.has(songKey(t)) ? seen : fresh).push(t));
-    const ordered = explore ? shuffle(fresh).concat(shuffle(seen)) : pool.slice();
-    const scanCap = (opts && opts.scanCap)
-      || (explore
-        ? Math.min(ordered.length, Math.max(90, want * 12))
-        : Math.min(ordered.length, Math.max(want * 8, 24)));
-    const found = [];
-    const retry = [];
-    let lookupFails = 0;
-    for (let i = 0; i < ordered.length; i++) {
-      const unusedHave = found.filter((t) => !recent.has(songKey(t))).length;
-      if (explore && unusedHave >= want) break;
-      if (!explore && found.length >= want) break;
-      if (explore && i >= scanCap && found.length >= want) break;
-      if (i >= scanCap && found.length >= want) break;
-      if (!explore && lookupFails >= 6 && !found.length) break;
-      if (onProgress) onProgress(found.length, want, ordered.length);
-      try {
-        await resolvePreview(ordered[i]);
-        found.push(ordered[i]);
-        lookupFails = 0;
-      } catch (err) {
-        if (err && err.message === "lookup") {
-          retry.push(ordered[i]);
-          lookupFails += 1;
-        }
-      }
-    }
-    for (let i = 0; i < retry.length && found.length < want; i++) {
-      if (onProgress) onProgress(found.length, want, ordered.length);
-      await sleep(350);
-      try {
-        await resolvePreview(retry[i]);
-        found.push(retry[i]);
-      } catch {
-        /* still no clip */
-      }
-    }
-    if (!explore) return found.slice(0, want);
-    const unused = shuffle(found.filter((t) => !recent.has(songKey(t))));
-    const used = shuffle(found.filter((t) => recent.has(songKey(t))));
-    return unused.concat(used).slice(0, want);
+    yt.forEach((t) => (recent.has(songKey(t)) ? seen : fresh).push(t));
+    const ordered = explore ? shuffle(fresh).concat(shuffle(seen)) : yt.slice();
+    if (onProgress) onProgress(Math.min(ordered.length, want), want, yt.length);
+    return ordered.slice(0, want);
   }
 
   async function beginGame(tracks, opts) {
@@ -1056,7 +896,6 @@
       setupStatus("None of those songs could be played. Use a public YouTube playlist.");
       return false;
     }
-    if (queue.some((t) => ytId(t))) ensureYtPlayer().catch(() => {});
     state.queue = queue;
     state.reserve = reserve;
     state.wanted = want;
@@ -1079,6 +918,7 @@
     setupStatus("");
     show("game");
     setHash("/play");
+    if (queue.some((t) => ytId(t))) ensureYtPlayer().catch(() => {});
     dealRound();
     return true;
   }
@@ -1216,7 +1056,7 @@
         return;
       }
       const tracks = await loadDailyPlaylist();
-      ensureYtPlayer().catch(() => {});
+      loadYtApi().catch(() => {});
       let queue = [];
       let reserve = [];
       if (rec?.queue?.length && !practice && !rec.finished) {
@@ -1434,6 +1274,7 @@
 
   fillBars();
   paintHome();
+  loadYtApi().catch(() => {});
   clockTimer = setInterval(() => {
     paintCountdown($("daily-countdown"));
     paintCountdown($("results-countdown"));

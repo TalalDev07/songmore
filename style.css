@@ -345,18 +345,20 @@ textarea { resize: vertical; min-height: 160px; }
 .stats { display: flex; gap: 14px; color: var(--muted); font-size: 0.85rem; }
 .stats span:last-child { color: var(--lime); }
 
-.yt-host {
-  position: fixed;
-  left: -240px;
-  top: 0;
-  width: 200px;
-  height: 200px;
-  overflow: hidden;
-  pointer-events: none;
-  opacity: 0.02;
-}
 .stage { text-align: center; padding: 18px 0 8px; }
 .disc-wrap { width: min(280px, 72vw); margin: 0 auto 8px; position: relative; }
+.yt-host {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.yt-host iframe {
+  width: 100% !important;
+  height: 100% !important;
+}
 .disc {
   width: 100%;
   aspect-ratio: 1;
@@ -366,6 +368,7 @@ textarea { resize: vertical; min-height: 160px; }
     repeating-radial-gradient(circle at 50% 50%, #2a2a2a 0 2px, #111 3px 5px);
   box-shadow: 0 20px 50px #000a, inset 0 0 0 8px #0a0a0a;
   position: relative;
+  z-index: 2;
   overflow: hidden;
 }
 .disc.is-spin { animation: spin 2.8s linear infinite; }
