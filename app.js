@@ -12,15 +12,14 @@
 
   const $ = (id) => document.getElementById(id);
   const player = $("player");
-  let ytPlayer = null;
   let ytApiReady = null;
-  let ytPlayerReady = false;
-  let ytPlayerWait = null;
-  let ytReadyVideo = "";
-  let ytStartedVideo = "";
+  let ytLive = null;
+  let ytNext = null;
+  let ytLiveId = "";
+  let ytNextId = "";
   let ytWantPlay = false;
-  let ytAwaitPlaying = false;
   let ytPlayGen = 0;
+  let ytPlayersWait = null;
   const previewCache = new Map();
   let stopTimer = 0;
   let suggestIndex = 0;
@@ -87,10 +86,9 @@
   function stopClip() {
     clearTimeout(stopTimer);
     ytWantPlay = false;
-    ytAwaitPlaying = false;
     player.pause();
     try {
-      if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+      if (ytLive && ytLive.pauseVideo) ytLive.pauseVideo();
     } catch {
       /* player not ready */
     }
@@ -387,7 +385,7 @@
         title = title || meta.title;
         videoCount = Math.max(videoCount, Number(meta.videoCount) || 0);
         onPage("Reading playlist… " + merged.length + (videoCount ? " / " + videoCount : "") + " songs");
-        if (videoCount && merged.length >= videoCount) break;
+        if (merged.length) break;
       } catch (err) {
         lastErr = err;
       }
@@ -436,7 +434,7 @@
     const cacheKey = "songmore_ytlist_" + DAILY_PLAYLISTS.join(",");
     try {
       const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
-      if (cached && Array.isArray(cached.tracks) && cached.tracks.length >= DAILY_SONGS && Date.now() - cached.at < 6 * 3600 * 1000) {
+      if (cached && cached.date === utcDateKey() && Array.isArray(cached.tracks) && cached.tracks.length >= DAILY_SONGS) {
         return cached.tracks;
       }
     } catch {
@@ -461,7 +459,7 @@
       throw lastErr || new Error("Daily playlists are too short or couldn’t be read. They have to be public.");
     }
     try {
-      localStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), tracks }));
+      localStorage.setItem(cacheKey, JSON.stringify({ date: utcDateKey(), at: Date.now(), tracks }));
     } catch {
       /* quota */
     }
@@ -571,28 +569,21 @@
 
   function clipStart() {
     if (state.mode === "mid") {
-      const dur = ytPlayer && ytPlayer.getDuration && ytPlayer.getDuration();
+      const dur = ytLive && ytLive.getDuration && ytLive.getDuration();
       return dur && dur > CLIP_START + clipLen() + 4 ? Math.max(CLIP_START, dur * 0.45) : 45;
     }
     return CLIP_START;
   }
 
-  function ensureYtPlayer() {
-    if (ytPlayer && ytPlayerReady) return Promise.resolve(ytPlayer);
-    if (ytPlayerWait) return ytPlayerWait;
-    ytPlayerWait = loadYtApi().then(() => new Promise((resolve, reject) => {
-      if (ytPlayer && ytPlayerReady) {
-        resolve(ytPlayer);
-        return;
-      }
-      if (!document.getElementById("yt-player")) {
-        ytPlayerWait = null;
+  function bindPlayer(elId) {
+    return new Promise((resolve, reject) => {
+      if (!document.getElementById(elId)) {
         reject(new Error("YouTube player missing."));
         return;
       }
-      ytPlayer = new window.YT.Player("yt-player", {
-        width: "200",
-        height: "200",
+      const slot = new window.YT.Player(elId, {
+        width: "240",
+        height: "240",
         playerVars: {
           autoplay: 0,
           controls: 0,
@@ -605,48 +596,64 @@
         },
         events: {
           onReady: () => {
-            ytPlayerReady = true;
-            const game = $("view-game");
-            if (game && !game.hidden) paintClipMeta();
-            resolve(ytPlayer);
+            try { slot.mute(); } catch { /* ignore */ }
+            resolve(slot);
           },
           onStateChange: (e) => {
+            if (slot === ytNext) {
+              if (e.data === 1) {
+                try {
+                  slot.mute();
+                  slot.pauseVideo();
+                  slot.seekTo(clipStart(), true);
+                } catch { /* ignore */ }
+              }
+              return;
+            }
+            if (slot !== ytLive) return;
             if (e.data === 1) {
               setSpin(true);
-              if (ytAwaitPlaying) {
-                ytAwaitPlaying = false;
+              if (ytWantPlay) {
+                ytWantPlay = false;
                 armClipStop(clipLen());
               }
             } else if (e.data === 2 || e.data === 0) {
               setSpin(false);
             }
-            if (ytWantPlay && e.data === 5) {
-              try { ytPlayer.playVideo(); } catch { /* ignore */ }
-            }
           }
         }
       });
-    }));
-    return ytPlayerWait;
+    });
   }
 
-  function cueTrack(videoId) {
-    if (!ytPlayer || !videoId || !ytPlayer.cueVideoById) return;
-    const start = clipStart();
-    ytStartedVideo = "";
-    if (ytReadyVideo === videoId) {
-      try {
-        ytPlayer.pauseVideo();
-        ytPlayer.seekTo(start, true);
-      } catch { /* ignore */ }
-      return;
-    }
-    ytReadyVideo = videoId;
+  function ensurePlayers() {
+    if (ytLive && ytNext) return Promise.resolve();
+    if (ytPlayersWait) return ytPlayersWait;
+    ytPlayersWait = loadYtApi().then(async () => {
+      if (!ytLive) ytLive = await bindPlayer("yt-player-a");
+      if (!ytNext) ytNext = await bindPlayer("yt-player-b");
+    }).catch((err) => {
+      ytPlayersWait = null;
+      throw err;
+    });
+    return ytPlayersWait;
+  }
+
+  function prefetchVideo(videoId) {
+    if (!ytNext || !videoId || ytNextId === videoId || ytLiveId === videoId) return;
+    ytNextId = videoId;
     try {
-      ytPlayer.cueVideoById({ videoId, startSeconds: start });
+      ytNext.mute();
+      ytNext.setVolume(0);
+      ytNext.loadVideoById({ videoId, startSeconds: clipStart() });
     } catch {
-      ytReadyVideo = "";
+      ytNextId = "";
     }
+  }
+
+  function warmUpcoming() {
+    const upcoming = ytId(state.queue[state.qi + 1]);
+    if (upcoming) prefetchVideo(upcoming);
   }
 
   function armClipStop(len) {
@@ -655,41 +662,53 @@
     stopTimer = setTimeout(() => {
       if (gen !== ytPlayGen) return;
       ytWantPlay = false;
-      ytAwaitPlaying = false;
-      try { ytPlayer.pauseVideo(); } catch { /* ignore */ }
-      try { ytPlayer.seekTo(clipStart(), true); } catch { /* ignore */ }
+      try { ytLive.pauseVideo(); } catch { /* ignore */ }
+      try { ytLive.seekTo(clipStart(), true); } catch { /* ignore */ }
       setSpin(false);
+      warmUpcoming();
     }, len * 1000 + 80);
   }
 
   function playYtClipNow(videoId) {
-    if (!ytPlayer || !ytPlayerReady || !ytPlayer.playVideo) return false;
+    if (!ytLive || !ytLive.playVideo) return false;
     const start = clipStart();
     const len = clipLen();
     ytWantPlay = true;
-    ytAwaitPlaying = true;
     try {
-      ytPlayer.unMute();
-      ytPlayer.setVolume(100);
-      const st = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
-      const sameClip = ytStartedVideo === videoId && (st === 1 || st === 2);
-      if (sameClip) {
-        ytPlayer.seekTo(start, true);
-        ytPlayer.playVideo();
+      const liveState = ytLive.getPlayerState ? ytLive.getPlayerState() : -1;
+      const nextState = ytNext && ytNext.getPlayerState ? ytNext.getPlayerState() : -1;
+      const nextReady = ytNext && ytNextId === videoId && nextState !== -1 && nextState !== 0;
+      if (ytLiveId === videoId && (liveState === 1 || liveState === 2)) {
+        ytLive.unMute();
+        ytLive.setVolume(100);
+        ytLive.seekTo(start, true);
+        ytLive.playVideo();
+      } else if (nextReady) {
+        try { ytLive.pauseVideo(); ytLive.mute(); } catch { /* ignore */ }
+        const swap = ytLive;
+        ytLive = ytNext;
+        ytNext = swap;
+        ytLiveId = videoId;
+        ytNextId = "";
+        ytLive.unMute();
+        ytLive.setVolume(100);
+        ytLive.seekTo(start, true);
+        ytLive.playVideo();
       } else {
-        ytPlayer.loadVideoById({ videoId, startSeconds: start });
+        if (ytNextId === videoId) ytNextId = "";
+        ytLive.unMute();
+        ytLive.setVolume(100);
+        ytLive.loadVideoById({ videoId, startSeconds: start });
+        ytLiveId = videoId;
       }
-      ytReadyVideo = videoId;
-      ytStartedVideo = videoId;
     } catch {
       ytWantPlay = false;
-      ytAwaitPlaying = false;
       return false;
     }
     setSpin(true);
-    const st = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
+    const st = ytLive.getPlayerState ? ytLive.getPlayerState() : -1;
     if (st === 1) {
-      ytAwaitPlaying = false;
+      ytWantPlay = false;
       armClipStop(len);
     }
     return true;
@@ -744,7 +763,7 @@
       $("game-hint").textContent = "Each extra second costs 100. A miss costs 100 and unlocks more.";
       return;
     }
-    ensureYtPlayer().then(() => {
+    ensurePlayers().then(() => {
       if (ytId(state.current) === id) playYtClipNow(id);
     }).catch(() => {
       $("game-hint").textContent = "YouTube player failed to load. Refresh and try again.";
@@ -855,9 +874,7 @@
     $("reveal-art").hidden = true;
     $("reveal-art").removeAttribute("src");
     paintClipMeta();
-    ytReadyVideo = "";
-    ytStartedVideo = "";
-    ensureYtPlayer().catch(() => {});
+    ensurePlayers().catch(() => {});
   }
 
   function recordSong(ok) {
@@ -891,6 +908,7 @@
 
   function openReveal(ok) {
     stopClip();
+    ensurePlayers().then(warmUpcoming).catch(() => {});
     const pts = recordSong(ok);
     const card = $("reveal").querySelector(".reveal-card");
     card.classList.toggle("ok", ok);
@@ -1013,7 +1031,7 @@
       banner.hidden = true;
     }
     setupStatus("");
-    await ensureYtPlayer().catch(() => {});
+    await ensurePlayers().catch(() => {});
     show("game");
     setHash("/play");
     dealRound();
@@ -1134,7 +1152,7 @@
       card.blur();
     }
     try {
-      ensureYtPlayer().catch(() => {});
+      ensurePlayers().catch(() => {});
       homeStatus("Loading today’s playlist…");
       const rec = readDaily();
       if (rec?.finished && !practice) {
@@ -1371,7 +1389,7 @@
 
   fillBars();
   paintHome();
-  ensureYtPlayer().catch(() => {});
+  ensurePlayers().catch(() => {});
   clockTimer = setInterval(() => {
     paintCountdown($("daily-countdown"));
     paintCountdown($("results-countdown"));
