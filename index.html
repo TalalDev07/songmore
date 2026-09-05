@@ -15,6 +15,7 @@
 <body>
   <div class="grain" aria-hidden="true"></div>
   <audio id="player" preload="auto" playsinline webkit-playsinline></audio>
+  <div id="yt-host" class="yt-host" aria-hidden="true"><div id="yt-player"></div></div>
 
   <div id="app">
     <header class="top">
@@ -41,7 +42,7 @@
         <button type="button" class="mode-card" id="go-daily">
           <span class="mode-kicker" id="daily-kicker">today</span>
           <span class="mode-name">daily</span>
-          <span class="mode-desc">Five tracks from a huge vault. One official run. Each second you hear costs 100.</span>
+          <span class="mode-desc">Five tracks from the YouTube list. Same five for everyone today. Each second you hear costs 100.</span>
           <span class="mode-meta" id="daily-card-meta">Play · /5000</span>
         </button>
         <button type="button" class="mode-card" id="go-custom">
@@ -94,7 +95,7 @@
           </button>
           <button type="button" class="source" data-source="vault">
             <span class="source-name">The vault</span>
-            <span class="source-desc">Play the built-in library, shuffled.</span>
+            <span class="source-desc">The same YouTube list as daily, shuffled.</span>
           </button>
         </div>
       </div>
@@ -183,10 +184,9 @@
   </div>
 
   <footer class="foot">
-    <p>Clips are 30-second store previews. We never stream the full song. Each second you hear costs 100 points. A wrong guess costs 100.</p>
+    <p>Clips are short YouTube playback. We never play the whole song. Each second you hear costs 100 points. A wrong guess costs 100.</p>
   </footer>
 
-  <script src="catalog.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

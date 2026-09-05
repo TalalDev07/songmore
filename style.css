@@ -345,6 +345,16 @@ textarea { resize: vertical; min-height: 160px; }
 .stats { display: flex; gap: 14px; color: var(--muted); font-size: 0.85rem; }
 .stats span:last-child { color: var(--lime); }
 
+.yt-host {
+  position: fixed;
+  left: -240px;
+  top: 0;
+  width: 200px;
+  height: 200px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.02;
+}
 .stage { text-align: center; padding: 18px 0 8px; }
 .disc-wrap { width: min(280px, 72vw); margin: 0 auto 8px; position: relative; }
 .disc {

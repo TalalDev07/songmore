@@ -4,14 +4,15 @@
   const SEC_COST = 100;
   const MISS_COST = 100;
   const DAILY_SONGS = 5;
-  const CATALOG = (window.SONGMORE_CATALOG || []).map((t, i) => ({
-    id: t.id || ("c" + i),
-    title: t.title,
-    artist: t.artist
-  }));
+  // Public YouTube / YouTube Music playlists. Add more IDs anytime.
+  const DAILY_PLAYLISTS = [
+    "PLR1_K9rGe2t0"
+  ];
 
   const $ = (id) => document.getElementById(id);
   const player = $("player");
+  let ytPlayer = null;
+  let ytApiReady = null;
   const previewCache = new Map();
   let stopTimer = 0;
   let suggestIndex = 0;
@@ -51,12 +52,62 @@
       .trim();
   }
 
+  const CATALOG = (window.SONGMORE_CATALOG || []).map((t, i) => ({
+    id: t.id || ("c" + i),
+    title: t.title,
+    artist: t.artist
+  }));
+
+  function ytId(track) {
+    if (!track) return "";
+    if (track.videoId && String(track.videoId).length === 11) return track.videoId;
+    const raw = String(track.id || "");
+    if (raw.startsWith("yt") && raw.length === 13) return raw.slice(2);
+    return "";
+  }
+
+  function canPlay(track) {
+    return !!(ytId(track) || (track && track.preview));
+  }
+
+  function stopClip() {
+    clearTimeout(stopTimer);
+    player.pause();
+    try {
+      if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+    } catch {
+      /* player not ready */
+    }
+    setSpin(false);
+  }
+
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
   function utcDateKey(d) {
     return (d || new Date()).toISOString().slice(0, 10);
+  }
+
+  function utcDayIndex(key) {
+    const [y, m, d] = String(key || utcDateKey()).split("-").map(Number);
+    return Math.floor((Date.UTC(y, m - 1, d) - Date.UTC(2026, 0, 1)) / 86400000);
+  }
+
+  function pickDailySongs(tracks, dateKey) {
+    const ordered = seededShuffle(
+      tracks.slice().sort((a, b) => ytId(a).localeCompare(ytId(b))),
+      "cycle:" + DAILY_PLAYLISTS.join(",")
+    );
+    const n = ordered.length;
+    const offset = n ? ((utcDayIndex(dateKey) * DAILY_SONGS) % n + n) % n : 0;
+    const queue = [];
+    for (let i = 0; i < DAILY_SONGS && i < n; i++) {
+      queue.push({ ...ordered[(offset + i) % n] });
+    }
+    const used = new Set(queue.map(ytId));
+    const reserve = ordered.filter((t) => !used.has(ytId(t))).map((t) => ({ ...t }));
+    return { queue, reserve };
   }
 
   function prettyDate(key) {
@@ -305,6 +356,7 @@
     const onPage = (msg) => {
       if ($("paste-status")) $("paste-status").textContent = msg;
       if ($("setup-status")) $("setup-status").textContent = msg;
+      if ($("home-status")) $("home-status").textContent = msg;
     };
     const sources = [
       () => fetchInvidiousPlaylist("https://inv.nadeko.net/api/v1/playlists/", id, seen, merged, onPage),
@@ -328,19 +380,19 @@
   }
 
   function videosFromPlaylist(data) {
-    const vids = shuffle(data.videos || data.relatedStreams || []);
+    const vids = data.videos || data.relatedStreams || [];
     const tracks = [];
     const seen = new Set();
-    vids.forEach((v, i) => {
+    vids.forEach((v) => {
       const rawTitle = v.title || "";
       const rawArtist = v.author || v.uploaderName || "";
       if (!rawTitle) return;
       const t = cleanYtTitle(rawTitle, rawArtist);
-      const key = norm(t.title) + "|" + norm(t.artist);
-      if (seen.has(key)) return;
-      seen.add(key);
-      const vid = v.videoId || (v.url || "").replace(/^.*watch\?v=/, "").slice(0, 11) || String(i);
-      tracks.push({ id: "yt" + vid, title: t.title, artist: t.artist });
+      const vid = videoKey(v);
+      if (!vid || vid.length !== 11) return;
+      if (seen.has(vid)) return;
+      seen.add(vid);
+      tracks.push({ id: "yt" + vid, videoId: vid, title: t.title, artist: t.artist });
     });
     return tracks;
   }
@@ -360,6 +412,42 @@
       : String(tracks.length);
     $("paste-status").textContent = `Loaded ${total} songs from “${name}”.`;
     if ($("setup-status")) $("setup-status").textContent = $("paste-status").textContent;
+    return tracks;
+  }
+
+  async function loadDailyPlaylist() {
+    const cacheKey = "songmore_ytlist_" + DAILY_PLAYLISTS.join(",");
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
+      if (cached && Array.isArray(cached.tracks) && cached.tracks.length >= DAILY_SONGS && Date.now() - cached.at < 6 * 3600 * 1000) {
+        return cached.tracks;
+      }
+    } catch {
+      /* reload */
+    }
+    const seen = new Set();
+    const tracks = [];
+    let lastErr = null;
+    for (const id of DAILY_PLAYLISTS) {
+      try {
+        const data = await fetchPlaylistJson(id);
+        videosFromPlaylist(data).forEach((t) => {
+          if (!t.videoId || seen.has(t.videoId)) return;
+          seen.add(t.videoId);
+          tracks.push(t);
+        });
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    if (tracks.length < DAILY_SONGS) {
+      throw lastErr || new Error("Daily playlists are too short or couldn’t be read. They have to be public.");
+    }
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), tracks }));
+    } catch {
+      /* quota */
+    }
     return tracks;
   }
 
@@ -447,6 +535,27 @@
     return new Promise((r) => setTimeout(r, ms));
   }
 
+  async function deezerSongs(term) {
+    const url = "https://api.deezer.com/search?q=" + encodeURIComponent(term) + "&limit=8";
+    try {
+      const res = await fetch(url, {
+        signal: (typeof AbortSignal !== "undefined" && AbortSignal.timeout)
+          ? AbortSignal.timeout(8000)
+          : undefined
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.data || []).map((r) => ({
+        previewUrl: r.preview,
+        trackName: r.title,
+        artistName: (r.artist && r.artist.name) || "",
+        artworkUrl100: (r.album && (r.album.cover_medium || r.album.cover_big)) || ""
+      }));
+    } catch {
+      throw new Error("lookup");
+    }
+  }
+
   async function itunesSongs(term) {
     const url = "https://itunes.apple.com/search?term=" + encodeURIComponent(term) + "&entity=song&limit=10";
     let lastErr = null;
@@ -474,8 +583,73 @@
     return [];
   }
 
+  function loadYtApi() {
+    if (window.YT && window.YT.Player) return Promise.resolve();
+    if (ytApiReady) return ytApiReady;
+    ytApiReady = new Promise((resolve, reject) => {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (typeof prev === "function") prev();
+        resolve();
+      };
+      const s = document.createElement("script");
+      s.src = "https://www.youtube.com/iframe_api";
+      s.onerror = () => reject(new Error("YouTube player failed to load."));
+      document.head.appendChild(s);
+    });
+    return ytApiReady;
+  }
+
+  function ensureYtPlayer() {
+    return loadYtApi().then(() => new Promise((resolve) => {
+      if (ytPlayer && ytPlayer.playVideo) {
+        resolve(ytPlayer);
+        return;
+      }
+      ytPlayer = new window.YT.Player("yt-player", {
+        width: "200",
+        height: "200",
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          rel: 0,
+          origin: location.origin
+        },
+        events: {
+          onReady: () => resolve(ytPlayer)
+        }
+      });
+    }));
+  }
+
+  async function playYtClip(videoId) {
+    const yt = await ensureYtPlayer();
+    const len = clipLen();
+    let start = 0;
+    if (state.mode === "mid") {
+      const dur = yt.getDuration && yt.getDuration();
+      start = dur && dur > len + 4 ? Math.max(0, dur * 0.45) : 45;
+    }
+    yt.loadVideoById({
+      videoId,
+      startSeconds: start,
+      endSeconds: start + len
+    });
+    yt.playVideo();
+    setSpin(true);
+    clearTimeout(stopTimer);
+    stopTimer = setTimeout(() => {
+      try { yt.pauseVideo(); } catch { /* ignore */ }
+      setSpin(false);
+    }, len * 1000 + 120);
+  }
+
   async function resolvePreview(track) {
-    if (track.preview) return track;
+    if (canPlay(track)) return track;
     const key = norm(track.title) + "|" + norm(track.artist);
     if (previewCache.has(key)) {
       const cached = previewCache.get(key);
@@ -495,20 +669,24 @@
     let bestScore = 0;
     let lookupFailed = false;
     const seen = new Set();
-    for (const q of queries) {
-      try {
-        const rows = await itunesSongs(q);
-        for (const r of rows) {
-          if (!r.previewUrl || seen.has(r.previewUrl)) continue;
-          seen.add(r.previewUrl);
-          const s = previewAcceptable(track, r);
-          if (s > bestScore) {
-            bestScore = s;
-            best = r;
+    const searchers = [itunesSongs, deezerSongs];
+    for (const search of searchers) {
+      for (const q of queries) {
+        try {
+          const rows = await search(q);
+          for (const r of rows) {
+            if (!r.previewUrl || seen.has(r.previewUrl)) continue;
+            seen.add(r.previewUrl);
+            const s = previewAcceptable(track, r);
+            if (s > bestScore) {
+              bestScore = s;
+              best = r;
+            }
           }
+        } catch {
+          lookupFailed = true;
         }
-      } catch {
-        lookupFailed = true;
+        if (bestScore >= 60) break;
       }
       if (bestScore >= 60) break;
     }
@@ -560,8 +738,16 @@
   }
 
   async function playClip() {
+    const id = ytId(state.current);
+    if (id) {
+      clearTimeout(stopTimer);
+      player.pause();
+      await playYtClip(id);
+      return;
+    }
     if (!state.current?.preview) return;
     clearTimeout(stopTimer);
+    try { if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); } catch { /* ignore */ }
     await loadAudio(state.current.preview);
     const start = startOffset();
     player.currentTime = start;
@@ -661,8 +847,7 @@
   }
 
   async function dealRound() {
-    player.pause();
-    setSpin(false);
+    stopClip();
     pickedGuess = null;
     $("guess").value = "";
     $("suggest").hidden = true;
@@ -687,7 +872,7 @@
         tries += 1;
       }
     }
-    if (!state.current?.preview) {
+    if (!canPlay(state.current)) {
       alert("Could not find playable clips for this list. Try another playlist.");
       goHome();
       return;
@@ -715,7 +900,13 @@
       misses: state.misses
     });
     if (state.kind === "daily" && !state.practice) {
-      const rec = readDaily() || { date: utcDateKey(), queueIds: state.queue.map((t) => t.id) };
+      const rec = readDaily() || { date: utcDateKey() };
+      rec.queue = state.queue.map((t) => ({
+        id: t.id,
+        title: t.title,
+        artist: t.artist,
+        videoId: ytId(t)
+      }));
       rec.score = state.score;
       rec.log = state.log;
       rec.qi = state.qi + 1;
@@ -727,8 +918,7 @@
   }
 
   function openReveal(ok) {
-    player.pause();
-    setSpin(false);
+    stopClip();
     const pts = recordSong(ok);
     const card = $("reveal").querySelector(".reveal-card");
     card.classList.toggle("ok", ok);
@@ -863,9 +1053,10 @@
       if (options.kind !== "daily") rememberPlayed(queue);
     }
     if (!queue.length) {
-      setupStatus("None of those songs had a matching store preview. Try another list.");
+      setupStatus("None of those songs could be played. Use a public YouTube playlist.");
       return false;
     }
+    if (queue.some((t) => ytId(t))) ensureYtPlayer().catch(() => {});
     state.queue = queue;
     state.reserve = reserve;
     state.wanted = want;
@@ -907,7 +1098,12 @@
         date: lastRun.date,
         score: lastRun.score,
         log: lastRun.log,
-        queueIds: lastRun.queue.map((t) => t.id),
+        queue: lastRun.queue.map((t) => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          videoId: ytId(t)
+        })),
         finished: true,
         practice: false
       });
@@ -985,17 +1181,11 @@
   }
 
   function goHome() {
-    player.pause();
-    setSpin(false);
+    stopClip();
     $("reveal").hidden = true;
     show("home");
     setHash("/");
     paintHome();
-  }
-
-  function tracksFromIds(ids) {
-    const byId = new Map(CATALOG.map((t) => [t.id, t]));
-    return ids.map((id) => byId.get(id)).filter(Boolean).map((t) => ({ ...t }));
   }
 
   async function startDaily(practice) {
@@ -1007,8 +1197,7 @@
       card.blur();
     }
     try {
-      if (!CATALOG.length) throw new Error("Catalog failed to load. Refresh and try again.");
-      homeStatus("Finding today’s five songs…");
+      homeStatus("Loading today’s playlist…");
       const rec = readDaily();
       if (rec?.finished && !practice) {
         lastRun = {
@@ -1018,7 +1207,7 @@
           score: rec.score || 0,
           max: DAILY_SONGS * SONG_MAX,
           log: rec.log || [],
-          queue: tracksFromIds(rec.queueIds || [])
+          queue: rec.queue || []
         };
         homeStatus("");
         paintResults(lastRun);
@@ -1026,26 +1215,24 @@
         setHash("/results");
         return;
       }
+      const tracks = await loadDailyPlaylist();
+      ensureYtPlayer().catch(() => {});
       let queue = [];
       let reserve = [];
-      if (rec?.queueIds?.length && !practice && !rec.finished) {
-        queue = tracksFromIds(rec.queueIds);
+      if (rec?.queue?.length && !practice && !rec.finished) {
+        queue = rec.queue;
+        reserve = tracks.filter((t) => !queue.some((q) => q.id === t.id));
       }
       if (queue.length < DAILY_SONGS) {
-        const ordered = seededShuffle(CATALOG, utcDateKey()).map((t) => ({ ...t }));
-        queue = await collectPlayable(ordered, DAILY_SONGS, (have, need) => {
-          homeStatus(`Finding today’s songs… ${have}/${need}`);
-        }, { scanCap: 32 });
-        reserve = ordered.filter((t) => !queue.includes(t));
+        const picked = pickDailySongs(tracks, utcDateKey());
+        queue = picked.queue;
+        reserve = picked.reserve;
       }
-      if (!queue.length) {
-        throw new Error("Could not load today’s clips. Check your connection and tap daily again.");
-      }
-      const ok = await beginGame(CATALOG.map((t) => ({ ...t })), {
+      const ok = await beginGame(tracks, {
         kind: "daily",
         practice: !!practice || !!rec?.finished,
         mode: "start",
-        guessPool: CATALOG,
+        guessPool: tracks,
         queue,
         reserve,
         want: DAILY_SONGS,
@@ -1058,7 +1245,12 @@
       if (!practice && !rec?.finished) {
         writeDaily({
           date: utcDateKey(),
-          queueIds: state.queue.map((t) => t.id),
+          queue: state.queue.map((t) => ({
+            id: t.id,
+            title: t.title,
+            artist: t.artist,
+            videoId: ytId(t)
+          })),
           score: state.score,
           log: state.log,
           qi: state.qi,
@@ -1111,8 +1303,9 @@
       const src = btn.dataset.source;
       $("paste-box").hidden = src !== "paste";
       if (src === "vault") {
-        setupStatus("Finding playable clips…");
-        await beginGame(CATALOG.map((t) => ({ ...t })), { kind: "custom", guessPool: CATALOG });
+        setupStatus("Loading the YouTube list…");
+        const tracks = await loadDailyPlaylist();
+        await beginGame(tracks, { kind: "custom", guessPool: tracks });
       }
     });
   });
@@ -1158,8 +1351,7 @@
     dealRound();
   });
   $("quit").addEventListener("click", () => {
-    player.pause();
-    setSpin(false);
+    stopClip();
     $("reveal").hidden = true;
     if (state.kind === "custom") {
       show("custom");
