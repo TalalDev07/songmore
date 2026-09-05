@@ -14,6 +14,7 @@
   const player = $("player");
   let ytPlayer = null;
   let ytApiReady = null;
+  let ytWantStart = 5;
   const previewCache = new Map();
   let stopTimer = 0;
   let suggestIndex = 0;
@@ -570,10 +571,18 @@
           modestbranding: 1,
           playsinline: 1,
           rel: 0,
+          start: CLIP_START,
           origin: location.origin
         },
         events: {
-          onReady: () => resolve(ytPlayer)
+          onReady: () => resolve(ytPlayer),
+          onStateChange: (e) => {
+            if (!window.YT || e.data !== window.YT.PlayerState.PLAYING) return;
+            const t = ytPlayer.getCurrentTime && ytPlayer.getCurrentTime();
+            if (typeof t === "number" && t < ytWantStart - 0.4) {
+              ytPlayer.seekTo(ytWantStart, true);
+            }
+          }
         }
       });
     }));
@@ -587,13 +596,17 @@
       const dur = ytPlayer.getDuration && ytPlayer.getDuration();
       start = dur && dur > CLIP_START + len + 4 ? Math.max(CLIP_START, dur * 0.45) : 45;
     }
+    ytWantStart = start;
     try { ytPlayer.unMute(); ytPlayer.setVolume(100); } catch { /* ignore */ }
     ytPlayer.loadVideoById({
       videoId,
       startSeconds: start,
       endSeconds: start + len
     });
-    try { ytPlayer.playVideo(); } catch { /* ignore */ }
+    try {
+      ytPlayer.seekTo(start, true);
+      ytPlayer.playVideo();
+    } catch { /* ignore */ }
     setSpin(true);
     clearTimeout(stopTimer);
     stopTimer = setTimeout(() => {
@@ -611,7 +624,7 @@
   function startOffset() {
     const dur = Number.isFinite(player.duration) ? player.duration : 30;
     const len = clipLen();
-    if (state.mode === "start") return 0;
+    if (state.mode === "start") return CLIP_START;
     return Math.max(0, Math.min(dur - len - 0.15, dur * 0.45));
   }
 
