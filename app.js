@@ -1,45 +1,14 @@
 (() => {
   const CLIP_STEPS = [1, 2, 4, 7, 11, 16];
-  const DEMO = [
-    { title: "Levitating", artist: "Dua Lipa", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/59/dc/4d/59dc4dda-93ff-8f1c-c536-f005f6ea6af5/mzaf_3066686759813252385.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/6c/11/d6/6c11d681-aa3a-d59e-4c2e-f77e181026ab/190295092665.jpg/100x100bb.jpg") },
-    { title: "As It Was", artist: "Harry Styles", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/67/10/16/67101606-3869-ca44-6c03-e13d6322cb51/mzaf_1135399237022217274.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/2a/19/fb/2a19fb85-2f70-9e44-f2a9-82abe679b88e/886449990061.jpg/100x100bb.jpg") },
-    { title: "bad guy", artist: "Billie Eilish", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/c3/87/1f/c3871f7e-3260-d615-1c66-5fdca2c3a48f/mzaf_10721331211699880949.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/1a/37/d1/1a37d1b1-8508-54f2-f541-bf4e437dda76/19UMGIM05028.rgb.jpg/100x100bb.jpg") },
-    { title: "Shape of You", artist: "Ed Sheeran", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/44/c7/4f/44c74f0d-72dc-6143-d4d0-ba14d661ca0d/mzaf_9566898362556366703.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/15/e6/e8/15e6e8a4-4190-6a8b-86c3-ab4a51b88288/190295851286.jpg/100x100bb.jpg") },
-    { title: "Heat Waves", artist: "Glass Animals", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/a3/4c/b9/a34cb911-40fc-5f0c-e862-14bd171a77aa/mzaf_384792072030970151.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/da/8b/77/da8b7731-6f4f-eacf-5e74-8b23389eefa1/20UMGIM03371.rgb.jpg/100x100bb.jpg") },
-    { title: "Anti-Hero", artist: "Taylor Swift", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/1d/56/2a/1d562a07-dc5f-a9c0-1f36-2051a8c14eb7/mzaf_7214829135431340590.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3d/01/f2/3d01f2e5-5a08-835f-3d30-d031720b2b80/22UM1IM07364.rgb.jpg/100x100bb.jpg") },
-    { title: "Cruel Summer", artist: "Taylor Swift", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/44/af/81/44af8168-9609-1b85-5048-ada08dceacf3/mzaf_1341699644335558812.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/49/3d/ab/493dab54-f920-9043-6181-80993b8116c9/19UMGIM53909.rgb.jpg/100x100bb.jpg") },
-    { title: "Flowers", artist: "Miley Cyrus", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/68/9e/f7/689ef7fe-14fe-a846-c87f-7d3b2d6344b1/mzaf_4167137058064023087.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/8c/67/ff/8c67ff91-31c3-3fef-1884-ce3ec89f3af4/196589946874.jpg/100x100bb.jpg") },
-    { title: "Sunflower", artist: "Post Malone & Swae Lee", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/98/f0/d6/98f0d67e-f8bf-762d-cac7-1c6b3b6b35dd/mzaf_4543283896248560946.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/4b/30/2c/4b302cb6-7a14-5464-4e97-0577e9d0be49/18UMGIM82277.rgb.jpg/100x100bb.jpg") },
-    { title: "Someone You Loved", artist: "Lewis Capaldi", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/e5/c8/17/e5c817e2-7830-091f-8686-d6276d5beaeb/mzaf_5586826958480073790.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/92/d7/8f/92d78fb1-df3d-049e-c81d-7022808b151f/19UMGIM02973.rgb.jpg/100x100bb.jpg") },
-    { title: "Uptown Funk", artist: "Mark Ronson", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/b9/96/2c/b9962c79-3662-235c-e55d-6c4b41457499/mzaf_18075623088273148288.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/7e/30/c5/7e30c572-aa47-5f7b-c6fd-42d50cd2c56d/886444959797.jpg/100x100bb.jpg") },
-    { title: "Rolling in the Deep", artist: "Adele", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/4c/4f/03/4c4f032a-3d2b-853d-da81-996602355b42/mzaf_11625850023134180491.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/eb/ca/25/ebca2596-cd1e-b295-91a3-771c868d0a79/191404113868.png/100x100bb.jpg") },
-    { title: "Take On Me", artist: "a-ha", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/f2/03/4f/f2034f41-707f-7111-bc63-e5d3cf7f2240/mzaf_17215043934336702540.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music/c6/e1/c8/mzi.ixgzfcmc.jpg/100x100bb.jpg") },
-    { title: "Billie Jean", artist: "Michael Jackson", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/dc/bc/8a/dcbc8a3e-4ce1-c00d-cc02-eda2212053c7/mzaf_8347559338388601510.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/32/4f/fd/324ffda2-9e51-8f6a-0c2d-c6fd2b41ac55/074643811224.jpg/100x100bb.jpg") },
-    { title: "Smells Like Teen Spirit", artist: "Nirvana", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/a6/53/1e/a6531efa-397c-eb73-ecab-9b2790c1471e/mzaf_16440344883389407474.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/95/fd/b9/95fdb9b2-6d2b-92a6-97f2-51c1a6d477f1a/00602527874609.rgb.jpg/100x100bb.jpg") },
-    { title: "Wonderwall", artist: "Oasis", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/ab/16/93/ab16933c-6203-3db9-9da9-513ff1c8496d/mzaf_16993612140334549994.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music113/v4/04/92/e0/0492e08b-cbcc-9969-9ad6-8f5a0888068c/5051961007107.jpg/100x100bb.jpg") },
-    { title: "Mr. Brightside", artist: "The Killers", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/c3/a0/30/c3a03008-17c5-aa29-6c6a-5e757ccdbaa5/mzaf_6073120660767081787.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/11/64/9c/11649c80-2066-dba8-77a9-df7eecae26c1/17UM1IM06937.rgb.jpg/100x100bb.jpg") },
-    { title: "Seven Nation Army", artist: "The White Stripes", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/fe/2d/58/fe2d587f-6344-3fb3-43f7-d318a6253dcc/mzaf_16825320951570507954.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/07/25/09/0725098a-09f4-f240-e551-94384a590371/886448799009.jpg/100x100bb.jpg") },
-    { title: "Bohemian Rhapsody", artist: "Queen", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/8f/11/52/8f1152a9-fd5f-0021-f546-b97579c22ec3/mzaf_3962258993076347789.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/4d/08/2a/4d082a9e-7898-1aa1-a02f-339810058d9e/14DMGIM05632.rgb.jpg/100x100bb.jpg") },
-    { title: "Don't Stop Believin'", artist: "Journey", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/0f/e9/54/0fe95410-dc38-8696-0259-f61d869e9fca/mzaf_13616088119456591905.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/71/2d/61/712d617d-f4a4-5904-1b11-d4b4b45c47c5/828768588925.jpg/100x100bb.jpg") },
-    { title: "Lose Yourself", artist: "Eminem", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/13/5a/61/135a6154-8ca2-0523-1fa2-f4ac0ea9e1e7/mzaf_13242749689945681184.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/08/23/fc/0823fcd9-cb44-695b-32bf-b3bf51d9f800/00606949351229.rgb.jpg/100x100bb.jpg") },
-    { title: "HUMBLE.", artist: "Kendrick Lamar", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/1f/2e/37/1f2e37be-bdd0-d770-6ea4-091011a6aade/mzaf_2360827885900940865.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/ab/16/ef/ab16efe9-e7f1-66ec-021c-5592a23f0f9e/17UMGIM88793.rgb.jpg/100x100bb.jpg") },
-    { title: "One Dance", artist: "Drake", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview116/v4/a8/bd/68/a8bd68a2-dcd2-9024-3859-3a9fd6d53576/mzaf_16864609147187531487.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/f2/0d/8b/f20d8bff-a927-ae98-6784-20a1f51cb23e/16UMGIM27642.rgb.jpg/100x100bb.jpg") },
-    { title: "Stayin' Alive", artist: "Bee Gees", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/3f/26/77/3f2677d0-8077-c16a-7eea-7795fa614e0f/mzaf_14501202821130740263.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/6d/ed/e9/6dede96a-6c1b-c5bb-001b-e3039195bdbb/00602567067177.rgb.jpg/100x100bb.jpg") },
-    { title: "September", artist: "Earth, Wind & Fire", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/49/2d/44/492d441e-f0ce-5c3a-dcc6-3a892d2600f2/mzaf_2765278844043228646.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/5c/8e/19/5c8e191d-b458-fc29-54ef-bd9367835044/886447618547.jpg/100x100bb.jpg") },
-    { title: "Superstition", artist: "Stevie Wonder", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/59/4b/88/594b880c-4744-0510-775c-73d8b06567e8/mzaf_14855748840810986812.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/62/61/61/626161c0-f4d7-e6ff-8586-768340ef278f/00602537002382.rgb.jpg/100x100bb.jpg") },
-    { title: "Crazy in Love", artist: "Beyoncé", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/b5/2a/4f/b52a4fcd-0628-cb38-c8ab-a697c11a9175/mzaf_1541321636664021445.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music/03/c5/d4/mzi.ldvrmhxt.jpg/100x100bb.jpg") },
-    { title: "Umbrella", artist: "Rihanna", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/7b/45/22/7b452241-882c-409b-3a9b-23306b14286a/mzaf_8588243939716013218.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/2b/c0/81/2bc081c8-25f0-ba43-d451-587a54613778/16UMGIM59202.rgb.jpg/100x100bb.jpg") },
-    { title: "Old Town Road", artist: "Lil Nas X", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/32/9c/42/329c4214-8cce-5382-aa92-fe87e013f3d5/mzaf_14962210134357559640.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/07/d4/c3/07d4c33e-b793-d78f-bb1b-52f1e224da88/886447788264.jpg/100x100bb.jpg") },
-    { title: "I Wanna Dance with Somebody", artist: "Whitney Houston", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/7b/67/fd/7b67fd07-6a7a-0362-135c-878ac5799f2c/mzaf_11309521725869189721.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/86/b5/25/86b525b1-bff1-4bf6-6112-531251b3d672/dj.hthdmusj.jpg/100x100bb.jpg") },
-    { title: "Somebody That I Used to Know", artist: "Gotye", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/4a/63/85/4a6385ef-b80a-5e40-0bf2-245fa5b3dc52/mzaf_1146936378720252898.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/b3/8a/98/b38a9867-2a9c-de2f-2d80-c624fb2200ec/11UMGIM19347.rgb.jpg/100x100bb.jpg") },
-    { title: "Sweet Child O' Mine", artist: "Guns N' Roses", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/0d/cb/f3/0dcbf381-7cbf-78b8-7f74-d5789adf65a1/mzaf_17081805577020235844.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/56/47/b7/5647b700-6b9d-9e72-ec9f-51140b6d4492/00602567673781.rgb.jpg/100x100bb.jpg") },
-    { title: "God's Plan", artist: "Drake", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/c6/4a/be/c64abe74-adb4-cff5-005d-0fab3d72a806/mzaf_10276154697254415719.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/bb/6d/8f/bb6d8f67-6d04-10b5-dd62-eb5809ac54fc/00602567879152.rgb.jpg/100x100bb.jpg") },
-    { title: "Dance Monkey", artist: "Tones And I", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/43/1a/32/431a3203-7e62-c7b1-0377-824aded16096/mzaf_7471896698419931094.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/87/ed/42/87ed4279-d8d7-840f-90b5-2bffe34699ef/075679839237.jpg/100x100bb.jpg") },
-    { title: "Watermelon Sugar", artist: "Harry Styles", preview: "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview116/v4/16/86/f5/1686f50d-8b77-7e32-85f7-5f0e804d68fe/mzaf_14195633304344507287.plus.aac.p.m4a", art: art("https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/2b/c4/c9/2bc4c9d4-3bc6-ab13-3f71-df0b89b173de/886448022213.jpg/100x100bb.jpg") },
-    { title: "Blinding Lights", artist: "The Weeknd" },
-    { title: "Poker Face", artist: "Lady Gaga" },
-    { title: "good 4 u", artist: "Olivia Rodrigo" }
-  ].map((t, i) => ({ id: "d" + i, ...t }));
+  const SONG_MAX = 1000;
+  const SEC_COST = 100;
+  const MISS_COST = 100;
+  const DAILY_SONGS = 5;
+  const CATALOG = (window.SONGMORE_CATALOG || []).map((t, i) => ({
+    id: t.id || ("c" + i),
+    title: t.title,
+    artist: t.artist
+  }));
 
   const $ = (id) => document.getElementById(id);
   const player = $("player");
@@ -47,20 +16,29 @@
   let stopTimer = 0;
   let suggestIndex = 0;
   let pickedGuess = null;
+  let lastRun = null;
+  let clockTimer = 0;
 
   const state = {
+    kind: "daily",
+    practice: false,
     mode: "start",
+    rounds: 5,
     tracks: [],
+    guessPool: [],
     queue: [],
+    reserve: [],
     qi: 0,
     attempt: 0,
+    misses: 0,
     score: 0,
+    log: [],
     current: null,
     busy: false
   };
 
   function art(url) {
-    return url.replace("100x100bb", "400x400bb");
+    return String(url || "").replace("100x100bb", "400x400bb");
   }
 
   function norm(s) {
@@ -70,6 +48,53 @@
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]+/g, " ")
       .trim();
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function utcDateKey(d) {
+    return (d || new Date()).toISOString().slice(0, 10);
+  }
+
+  function prettyDate(key) {
+    const [y, m, day] = key.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, day)).toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC"
+    });
+  }
+
+  function hashString(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0;
+      a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function seededShuffle(arr, seed) {
+    const a = arr.slice();
+    const rng = mulberry32(hashString(String(seed)));
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
   }
 
   function shuffle(arr) {
@@ -87,9 +112,44 @@
     return CLIP_STEPS[Math.min(state.attempt, CLIP_STEPS.length - 1)];
   }
 
+  function songValue() {
+    return Math.max(0, SONG_MAX - clipLen() * SEC_COST - state.misses * MISS_COST);
+  }
+
+  function maxScore() {
+    return state.queue.length * SONG_MAX;
+  }
+
+  function dailyKey() {
+    return "songmore_daily_" + utcDateKey();
+  }
+
+  function readDaily() {
+    try {
+      return JSON.parse(localStorage.getItem(dailyKey()) || "null");
+    } catch {
+      return null;
+    }
+  }
+
+  function writeDaily(rec) {
+    localStorage.setItem(dailyKey(), JSON.stringify(rec));
+  }
+
   function show(id) {
-    $("view-home").hidden = id !== "home";
-    $("view-game").hidden = id !== "game";
+    ["home", "custom", "game", "results"].forEach((name) => {
+      const el = $("view-" + name);
+      if (el) el.hidden = name !== id;
+    });
+    document.querySelectorAll(".nav-btn").forEach((btn) => {
+      const go = btn.dataset.go;
+      btn.classList.toggle("is-on", (id === "game" || id === "results") ? go === state.kind : go === id);
+    });
+  }
+
+  function setHash(path) {
+    const next = "#" + path;
+    if (location.hash !== next) history.replaceState({}, "", next);
   }
 
   function setSpin(on) {
@@ -235,6 +295,81 @@
     return tracks;
   }
 
+  const TITLE_NOISE = new Set([
+    "the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "with",
+    "feat", "ft", "featuring", "official", "video", "audio", "lyric", "lyrics",
+    "remix", "remaster", "remastered", "live", "version", "edit", "radio",
+    "extended", "deluxe", "bonus", "track", "mono", "stereo", "acoustic",
+    "session", "cover", "from", "original", "motion", "picture", "soundtrack",
+    "theme", "intro", "outro", "mix", "vol", "volume", "part", "pt"
+  ]);
+
+  function stripTitleJunk(s) {
+    return norm(s)
+      .replace(/\b(feat|ft|featuring)\b.+$/, " ")
+      .replace(/\b(remaster(?:ed)?|live|remix|mix|version|edit|radio|acoustic|deluxe|bonus|mono|stereo|extended)\b.+$/, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function contentWords(s) {
+    return stripTitleJunk(s).split(" ").filter((w) => w && !TITLE_NOISE.has(w));
+  }
+
+  function wordEq(a, b) {
+    if (a === b) return true;
+    const short = a.length < b.length ? a : b;
+    const long = a.length < b.length ? b : a;
+    return long.startsWith(short) && long.length - short.length <= 2;
+  }
+
+  function wordsCovered(need, have) {
+    return need.every((w) => have.some((h) => wordEq(w, h)));
+  }
+
+  function titlesAlign(want, got) {
+    const a = stripTitleJunk(want);
+    const b = stripTitleJunk(got);
+    if (!a || !b) return 0;
+    if (a === b) return 8;
+    const ta = contentWords(want);
+    const tb = contentWords(got);
+    if (!ta.length || !tb.length) return 0;
+    if (!wordsCovered(ta, tb) || !wordsCovered(tb, ta)) return 0;
+    return 6;
+  }
+
+  function artistsAlign(want, got) {
+    const a = norm(want).replace(/\s*-\s*topic$/, "");
+    const b = norm(got);
+    if (!a) return 0;
+    if (a === b) return 4;
+    if (a.includes(b) || b.includes(a)) return 3;
+    const ta = contentWords(want);
+    const tb = contentWords(got);
+    if (ta.length && tb.length && wordsCovered(ta, tb)) return 3;
+    if (ta.some((w) => tb.some((h) => wordEq(w, h)))) return 1;
+    return 0;
+  }
+
+  function previewAcceptable(track, result) {
+    const tScore = titlesAlign(track.title, result.trackName);
+    if (!tScore) return 0;
+    const aScore = artistsAlign(track.artist, result.artistName);
+    const shortTitle = contentWords(track.title).length < 2;
+    if (shortTitle && aScore < 2) return 0;
+    if (tScore < 8 && aScore < 2) return 0;
+    return tScore * 10 + aScore;
+  }
+
+  async function itunesSongs(term) {
+    const url = "https://itunes.apple.com/search?term=" + encodeURIComponent(term) + "&entity=song&limit=15";
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.results || [];
+  }
+
   async function resolvePreview(track) {
     if (track.preview) return track;
     const key = norm(track.title) + "|" + norm(track.artist);
@@ -242,28 +377,31 @@
       Object.assign(track, previewCache.get(key));
       return track;
     }
-    const q = encodeURIComponent([track.title, track.artist].filter(Boolean).join(" "));
-    const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=5`);
-    const data = await res.json();
-    let best = null;
-    let bestScore = -1;
-    for (const r of data.results || []) {
-      if (!r.previewUrl) continue;
-      const nt = norm(track.title);
-      const na = norm(track.artist);
-      const rt = norm(r.trackName);
-      const ra = norm(r.artistName);
-      let s = 0;
-      if (rt === nt) s += 4;
-      else if (rt.includes(nt) || nt.includes(rt)) s += 2;
-      if (!na || ra === na) s += 4;
-      else if (ra.includes(na) || na.includes(ra)) s += 2;
-      if (s > bestScore) {
-        bestScore = s;
-        best = r;
-      }
+    const queries = [];
+    if (track.artist) {
+      queries.push(track.title + " " + track.artist);
+      queries.push('"' + track.title + '" ' + track.artist);
     }
-    if (!best || bestScore < 2) throw new Error("no preview");
+    queries.push(track.title);
+    queries.push('"' + track.title + '"');
+
+    let best = null;
+    let bestScore = 0;
+    const seen = new Set();
+    for (const q of queries) {
+      const rows = await itunesSongs(q);
+      for (const r of rows) {
+        if (!r.previewUrl || seen.has(r.previewUrl)) continue;
+        seen.add(r.previewUrl);
+        const s = previewAcceptable(track, r);
+        if (s > bestScore) {
+          bestScore = s;
+          best = r;
+        }
+      }
+      if (bestScore >= 80) break;
+    }
+    if (!best) throw new Error("no preview");
     const extra = {
       preview: best.previewUrl,
       art: art(best.artworkUrl100 || ""),
@@ -345,12 +483,16 @@
 
   function paintClipMeta() {
     const len = clipLen();
-    $("clip-meta").textContent = `${len.toFixed(1)}s · ${state.mode}`;
+    const worth = songValue();
+    $("clip-meta").textContent = `${len.toFixed(1)}s · worth ${worth}`;
     $("play-label").textContent = `Play ${len} second${len === 1 ? "" : "s"}`;
-    $("stat-mode").textContent = state.mode;
+    $("stat-kind").textContent = state.practice ? "practice" : state.kind;
     $("stat-round").textContent = `${state.qi + 1} / ${state.queue.length}`;
-    $("stat-score").textContent = `${state.score} pts`;
+    $("stat-score").textContent = `${state.score}`;
     $("skip").disabled = state.attempt >= CLIP_STEPS.length - 1;
+    const nextLen = CLIP_STEPS[Math.min(state.attempt + 1, CLIP_STEPS.length - 1)];
+    const extra = (nextLen - len) * SEC_COST;
+    $("skip").textContent = state.attempt >= CLIP_STEPS.length - 1 ? "Max clip" : `Hear more −${extra}`;
   }
 
   function fillBars() {
@@ -361,8 +503,9 @@
 
   function filterTracks(q) {
     const n = norm(q);
-    if (!n) return state.tracks.slice(0, 8);
-    return state.tracks
+    const pool = state.guessPool.length ? state.guessPool : state.tracks;
+    if (!n) return pool.slice(0, 8);
+    return pool
       .map((t) => {
         const hay = norm(t.title + " " + t.artist);
         let score = 0;
@@ -390,8 +533,16 @@
     ).join("");
   }
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  function sameTrack(a, b) {
+    if (!a || !b) return false;
+    if (a.id && b.id && a.id === b.id) return true;
+    if (titlesAlign(a.title, b.title) < 6) return false;
+    if (!a.artist || !b.artist) return titlesAlign(a.title, b.title) >= 8;
+    return artistsAlign(a.artist, b.artist) >= 1;
+  }
+
+  function findInPool(id) {
+    return (state.guessPool.length ? state.guessPool : state.tracks).find((x) => x.id === id) || null;
   }
 
   async function dealRound() {
@@ -402,55 +553,75 @@
     $("suggest").hidden = true;
     $("suggest").innerHTML = "";
     $("reveal").hidden = true;
-    $("game-hint").textContent = "Wrong guess or “hear more” unlocks a longer clip.";
-    if (!state.queue.length) return;
-    if (state.qi >= state.queue.length) {
-      state.queue = shuffle(state.tracks);
-      state.qi = 0;
+    $("game-hint").textContent = "Each extra second costs 100. A miss costs 100 and unlocks more.";
+    if (!state.queue.length || state.qi >= state.queue.length) {
+      finishRun();
+      return;
     }
     let tries = 0;
-    while (tries < 12) {
+    while (tries < 24 && state.qi < state.queue.length) {
       const track = state.queue[state.qi];
       try {
         await resolvePreview(track);
         state.current = track;
         break;
       } catch {
-        state.qi = (state.qi + 1) % state.queue.length;
+        const swap = (state.reserve || []).shift();
+        if (swap) state.queue[state.qi] = swap;
+        else state.queue.splice(state.qi, 1);
         tries += 1;
       }
     }
     if (!state.current?.preview) {
       alert("Could not find playable clips for this list. Try another playlist.");
-      show("home");
+      goHome();
       return;
     }
     state.attempt = 0;
+    state.misses = 0;
     $("disc-art").style.backgroundImage = state.current.art ? `url("${state.current.art}")` : "";
     $("disc-art").style.filter = "blur(14px) saturate(0.5)";
     $("disc-art").style.opacity = "0.55";
     $("reveal-art").hidden = true;
     paintClipMeta();
-    const nxt = state.queue[(state.qi + 1) % state.queue.length];
+    const nxt = state.queue[state.qi + 1];
     if (nxt) resolvePreview(nxt).catch(() => {});
   }
 
-  function pointsFor() {
-    return [6, 5, 4, 3, 2, 1][Math.min(state.attempt, 5)];
+  function recordSong(ok) {
+    const pts = ok ? songValue() : 0;
+    if (ok) state.score += pts;
+    state.log.push({
+      title: state.current.title,
+      artist: state.current.artist,
+      ok,
+      pts,
+      seconds: clipLen(),
+      misses: state.misses
+    });
+    if (state.kind === "daily" && !state.practice) {
+      const rec = readDaily() || { date: utcDateKey(), queueIds: state.queue.map((t) => t.id) };
+      rec.score = state.score;
+      rec.log = state.log;
+      rec.qi = state.qi + 1;
+      rec.finished = rec.qi >= state.queue.length;
+      rec.practice = false;
+      writeDaily(rec);
+    }
+    return pts;
   }
 
   function openReveal(ok) {
     player.pause();
     setSpin(false);
+    const pts = recordSong(ok);
     const card = $("reveal").querySelector(".reveal-card");
     card.classList.toggle("ok", ok);
     card.classList.toggle("bad", !ok);
     $("reveal-kicker").textContent = ok ? "Nailed it" : "It was";
     $("reveal-title").textContent = state.current.title;
     $("reveal-artist").textContent = state.current.artist;
-    const pts = ok ? pointsFor() : 0;
-    if (ok) state.score += pts;
-    $("reveal-score").textContent = ok ? `+${pts} · ${state.score} total` : `${state.score} total`;
+    $("reveal-score").textContent = ok ? `+${pts} · ${state.score} total` : `0 · ${state.score} total`;
     $("disc-art").style.filter = "blur(0) saturate(1)";
     $("disc-art").style.opacity = "1";
     const artEl = $("reveal-art");
@@ -461,6 +632,8 @@
       artEl.removeAttribute("src");
       artEl.hidden = true;
     }
+    const last = state.qi + 1 >= state.queue.length;
+    $("next-btn").textContent = last ? "See score" : "Next track";
     $("reveal").hidden = false;
     paintClipMeta();
   }
@@ -469,265 +642,229 @@
     if (!state.current) return;
     const g = pickedGuess || matchTyped($("guess").value);
     if (!g) {
-      $("game-hint").textContent = "Pick a suggestion from your playlist.";
+      $("game-hint").textContent = "Pick a suggestion from the list.";
       $("guess").focus();
       return;
     }
-    if (g.id === state.current.id) openReveal(true);
+    if (sameTrack(g, state.current)) openReveal(true);
     else {
+      state.misses += 1;
       state.attempt = Math.min(state.attempt + 1, CLIP_STEPS.length - 1);
       paintClipMeta();
-      $("game-hint").textContent = "Nope. Clip got longer — hit play.";
+      $("game-hint").textContent = `Nope (−${MISS_COST}). Clip got longer — hit play.`;
       $("guess").value = "";
       pickedGuess = null;
       $("suggest").hidden = true;
-      if (state.attempt >= CLIP_STEPS.length - 1 && clipLen() === CLIP_STEPS.at(-1)) {
-        /* last length already; another miss still stays here */
-      }
     }
   }
 
   function matchTyped(q) {
     const n = norm(q);
     if (!n) return null;
-    return state.tracks.find((t) => norm(t.title + " " + t.artist) === n || norm(t.title) === n) || null;
+    const pool = state.guessPool.length ? state.guessPool : state.tracks;
+    return pool.find((t) => norm(t.title + " " + t.artist) === n || norm(t.title) === n) || null;
   }
 
-  /* ---------- Spotify PKCE ---------- */
-  function liveRedirect() {
-    let path = location.pathname.replace(/index\.html$/i, "");
-    if (!path.endsWith("/")) path += "/";
-    return location.origin + path;
-  }
-
-  function redirectUri() {
-    return sessionStorage.getItem("songmore_redirect") || liveRedirect();
-  }
-
-  function spotifyClientId() {
-    const fromConfig = (window.SONGMORE && window.SONGMORE.spotifyClientId) || "";
-    return fromConfig.trim() || localStorage.getItem("songmore_spotify_id") || ($("spotify-id") && $("spotify-id").value.trim()) || "";
-  }
-
-  function spotifyReady() {
-    const hasId = !!spotifyClientId();
-    const setup = $("spotify-setup");
-    if (setup) setup.hidden = hasId && !location.search.includes("setup=1");
-    return hasId;
-  }
-
-  function saveTokens(tok) {
-    localStorage.setItem("songmore_spotify_tok", JSON.stringify({
-      access: tok.access_token,
-      refresh: tok.refresh_token || JSON.parse(localStorage.getItem("songmore_spotify_tok") || "{}").refresh,
-      exp: Date.now() + (tok.expires_in - 30) * 1000
-    }));
-  }
-
-  async function getAccess() {
-    const raw = localStorage.getItem("songmore_spotify_tok");
-    if (!raw) return null;
-    const t = JSON.parse(raw);
-    if (t.exp > Date.now()) return t.access;
-    if (!t.refresh) return null;
-    const body = new URLSearchParams({
-      client_id: spotifyClientId(),
-      grant_type: "refresh_token",
-      refresh_token: t.refresh
-    });
-    const res = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    saveTokens(json);
-    return json.access_token;
-  }
-
-  async function spotifyErrorMessage(res) {
-    let detail = "";
-    try {
-      const j = await res.json();
-      detail = j.error?.message || j.error_description || j.error || "";
-    } catch { /* ignore */ }
-    const text = String(detail).toLowerCase();
-    if (res.status === 403 || text.includes("not registered") || text.includes("user may not be registered")) {
-      return "Spotify blocked this account. In the Developer Dashboard open User Management, add the email you log in with, then try again.";
-    }
-    if (res.status === 401 || text.includes("invalid")) {
-      localStorage.removeItem("songmore_spotify_tok");
-      return "Spotify session expired. Click Log in with Spotify again.";
-    }
-    if (text.includes("redirect")) {
-      return "Redirect URI mismatch. In the Spotify app settings add exactly: " + redirectUri();
-    }
-    return detail ? String(detail) : "Spotify request failed (" + res.status + ").";
-  }
-
-  async function spFetch(path) {
-    const token = await getAccess();
-    if (!token) throw new Error("Not logged in.");
-    const res = await fetch("https://api.spotify.com" + path, {
-      headers: { Authorization: "Bearer " + token }
-    });
-    if (!res.ok) throw new Error(await spotifyErrorMessage(res));
-    return res.json();
-  }
-
-  async function allPages(firstPath, cap) {
-    let url = firstPath;
-    const items = [];
-    while (url && items.length < cap) {
-      const data = url.startsWith("http")
-        ? await (await fetch(url, { headers: { Authorization: "Bearer " + await getAccess() } })).json()
-        : await spFetch(url);
-      items.push(...(data.items || []));
-      url = data.next;
-    }
-    return items.slice(0, cap);
-  }
-
-  function trackFromSpotify(item) {
-    const t = item.track || item;
-    if (!t || t.is_local || !t.name) return null;
-    return {
-      id: t.id || ("s" + t.name),
-      title: t.name,
-      artist: (t.artists || []).map((a) => a.name).join(", "),
-      art: t.album?.images?.[1]?.url || t.album?.images?.[0]?.url || ""
-    };
-  }
-
-  async function startSpotifyLogin() {
-    const typed = $("spotify-id") && $("spotify-id").value.trim();
-    if (typed) localStorage.setItem("songmore_spotify_id", typed);
-    const id = spotifyClientId();
-    if (!id) {
-      $("spotify-status").textContent = "Add your Client ID in config.js first (one-time, you only).";
-      return;
-    }
-    if (location.protocol === "file:") {
-      $("spotify-status").textContent = "Spotify login needs a local server, not a file:// page. Run: python -m http.server 8080";
-      return;
-    }
-    localStorage.setItem("songmore_spotify_id", id);
-    const verifier = [...crypto.getRandomValues(new Uint8Array(64))].map((n) => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[n % 62]).join("");
-    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
-    const challenge = btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    const redirect = liveRedirect();
-    sessionStorage.setItem("songmore_verifier", verifier);
-    sessionStorage.setItem("songmore_redirect", redirect);
-    const params = new URLSearchParams({
-      client_id: id,
-      response_type: "code",
-      redirect_uri: redirect,
-      scope: "user-library-read playlist-read-private playlist-read-collaborative",
-      code_challenge_method: "S256",
-      code_challenge: challenge,
-      state: "songmore"
-    });
-    location.href = "https://accounts.spotify.com/authorize?" + params.toString();
-  }
-
-  async function handleSpotifyReturn() {
-    const q = new URLSearchParams(location.search);
-    if (q.get("error")) {
-      $("spotify-status").textContent = "Spotify login was cancelled or denied.";
-      history.replaceState({}, "", location.pathname);
-      document.querySelector('[data-source="spotify"]').click();
-      return true;
-    }
-    const code = q.get("code");
-    if (!code) return false;
-    const verifier = sessionStorage.getItem("songmore_verifier");
-    const id = spotifyClientId();
-    const redirect = sessionStorage.getItem("songmore_redirect") || redirectUri();
-    history.replaceState({}, "", location.pathname);
-    document.querySelector('[data-source="spotify"]').click();
-    if (!verifier || !id) {
-      $("spotify-status").textContent = "Login expired. Click Log in with Spotify again.";
-      return true;
-    }
-    const res = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: id,
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: redirect,
-        code_verifier: verifier
-      })
-    });
-    if (!res.ok) {
-      $("spotify-status").textContent = await spotifyErrorMessage(res);
-      return true;
-    }
-    saveTokens(await res.json());
-    sessionStorage.removeItem("songmore_verifier");
-    await showSpotifyPlaylists();
-    return true;
-  }
-
-  async function showSpotifyPlaylists() {
-    const box = $("playlist-list");
-    const status = $("spotify-status");
-    status.textContent = "Loading your playlists…";
-    try {
-      const me = await spFetch("/v1/me");
-      const playlists = await allPages("/v1/me/playlists?limit=50", 50);
-      box.hidden = false;
-      box.innerHTML = "";
-      const liked = document.createElement("button");
-      liked.type = "button";
-      liked.innerHTML = `<strong>Liked Songs</strong><br><small>${me.display_name}</small>`;
-      liked.onclick = () => loadSpotifySource("liked");
-      box.appendChild(liked);
-      playlists.forEach((p) => {
-        if (!p) return;
-        const b = document.createElement("button");
-        b.type = "button";
-        b.innerHTML = `<strong>${escapeHtml(p.name)}</strong><br><small>${p.tracks?.total ?? "?"} tracks</small>`;
-        b.onclick = () => loadSpotifySource("playlist", p.id);
-        box.appendChild(b);
-      });
-      status.textContent = "Pick Liked Songs or a playlist. We rotate through it.";
-    } catch (err) {
-      localStorage.removeItem("songmore_spotify_tok");
-      status.textContent = err.message || "Could not load Spotify. Log in again.";
-    }
-  }
-
-  async function loadSpotifySource(kind, id) {
-    $("spotify-status").textContent = "Pulling tracks…";
-    let items = [];
-    if (kind === "liked") items = await allPages("/v1/me/tracks?limit=50", 500);
-    else items = await allPages(`/v1/playlists/${id}/tracks?limit=50`, 500);
-    const tracks = items.map(trackFromSpotify).filter(Boolean);
-    const uniq = [];
-    const seen = new Set();
-    tracks.forEach((t) => {
-      if (seen.has(t.id)) return;
-      seen.add(t.id);
-      uniq.push(t);
-    });
-    if (uniq.length < 5) {
-      $("spotify-status").textContent = "Need at least 5 tracks on that playlist.";
-      return;
-    }
-    beginGame(uniq);
-  }
-
-  function beginGame(tracks) {
+  function beginGame(tracks, opts) {
+    const options = opts || {};
+    state.kind = options.kind || "custom";
+    state.practice = !!options.practice;
+    state.mode = options.mode || state.mode;
     state.tracks = tracks;
-    state.queue = shuffle(tracks);
-    state.qi = 0;
-    state.score = 0;
+    state.guessPool = options.guessPool || tracks;
+    state.queue = options.queue || takeRounds(tracks);
+    state.reserve = options.reserve || [];
+    state.qi = options.qi || 0;
+    state.score = options.score || 0;
+    state.log = options.log ? options.log.slice() : [];
     state.current = null;
+    state.attempt = 0;
+    state.misses = 0;
+    const banner = $("game-banner");
+    if (state.practice) {
+      banner.hidden = false;
+      banner.textContent = "Practice — today’s official score is already locked.";
+    } else {
+      banner.hidden = true;
+    }
     show("game");
+    setHash("/play");
     dealRound();
+  }
+
+  function takeRounds(tracks) {
+    const shuffled = shuffle(tracks);
+    if (state.rounds === "all") return shuffled;
+    return shuffled.slice(0, Math.min(Number(state.rounds) || 5, shuffled.length));
+  }
+
+  function finishRun() {
+    lastRun = {
+      kind: state.kind,
+      practice: state.practice,
+      date: utcDateKey(),
+      score: state.score,
+      max: maxScore(),
+      log: state.log.slice(),
+      queue: state.queue.slice()
+    };
+    if (state.kind === "daily" && !state.practice) {
+      writeDaily({
+        date: lastRun.date,
+        score: lastRun.score,
+        log: lastRun.log,
+        queueIds: lastRun.queue.map((t) => t.id),
+        finished: true,
+        practice: false
+      });
+    }
+    paintResults(lastRun);
+    show("results");
+    setHash("/results");
+    paintHome();
+  }
+
+  function paintResults(run) {
+    const official = run.kind === "daily" && !run.practice;
+    $("results-kicker").textContent = run.practice ? "practice" : run.kind;
+    $("results-date").textContent = run.kind === "daily" ? prettyDate(run.date) : `${run.log.length} songs`;
+    $("results-score").innerHTML = `${run.score}<span>/${run.max}</span>`;
+    if (run.kind === "daily") {
+      $("results-blurb").textContent = official
+        ? "That’s your official run for today. Same five songs for everyone. Come back tomorrow."
+        : "Practice doesn’t overwrite today’s official score.";
+    } else {
+      $("results-blurb").textContent = "Custom run. Paste another list or play the vault again.";
+    }
+    $("score-list").innerHTML = run.log.map((row) => `
+      <li class="${row.ok ? "" : "is-miss"}">
+        <span class="score-mark">${row.ok ? "●" : "○"}</span>
+        <span><strong>${escapeHtml(row.title)}</strong><small>${escapeHtml(row.artist)} · ${row.seconds}s</small></span>
+        <span class="score-pts">${row.pts}</span>
+      </li>
+    `).join("");
+    $("results-again").textContent = run.kind === "daily" ? "Practice today" : "Play again";
+    $("share-status").textContent = "";
+    paintCountdown($("results-countdown"));
+  }
+
+  function shareText(run) {
+    const lines = run.log.map((row) => {
+      if (!row.ok) return "🟥 " + row.pts;
+      if (row.pts >= 800) return "🟩 " + row.pts;
+      return "🟨 " + row.pts;
+    });
+    const title = run.kind === "daily"
+      ? `songmore daily — ${prettyDate(run.date)}`
+      : `songmore custom — ${run.log.length} songs`;
+    return [title, `${run.score}/${run.max}`, ...lines, "https://talaldev07.github.io/songmore/"].join("\n");
+  }
+
+  function msUntilNextUtcDay() {
+    const now = new Date();
+    const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+    return Math.max(0, next - now.getTime());
+  }
+
+  function formatCountdown() {
+    const ms = msUntilNextUtcDay();
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    return `Next daily in ${h}h ${m}m`;
+  }
+
+  function paintCountdown(el) {
+    if (!el) return;
+    el.textContent = formatCountdown();
+  }
+
+  function paintHome() {
+    const rec = readDaily();
+    $("top-date").textContent = prettyDate(utcDateKey());
+    $("daily-kicker").textContent = rec?.finished ? "played" : "today";
+    $("daily-card-meta").textContent = rec?.finished
+      ? `${rec.score}/5000 · see score`
+      : `Play · /5000`;
+    paintCountdown($("daily-countdown"));
+  }
+
+  function goHome() {
+    player.pause();
+    setSpin(false);
+    $("reveal").hidden = true;
+    show("home");
+    setHash("/");
+    paintHome();
+  }
+
+  function tracksFromIds(ids) {
+    const byId = new Map(CATALOG.map((t) => [t.id, t]));
+    return ids.map((id) => byId.get(id)).filter(Boolean).map((t) => ({ ...t }));
+  }
+
+  async function startDaily(practice) {
+    if (!CATALOG.length) {
+      alert("Catalog failed to load.");
+      return;
+    }
+    const rec = readDaily();
+    if (rec?.finished && !practice) {
+      lastRun = {
+        kind: "daily",
+        practice: false,
+        date: rec.date || utcDateKey(),
+        score: rec.score || 0,
+        max: DAILY_SONGS * SONG_MAX,
+        log: rec.log || [],
+        queue: tracksFromIds(rec.queueIds || [])
+      };
+      paintResults(lastRun);
+      show("results");
+      setHash("/results");
+      return;
+    }
+    let queue = [];
+    if (rec?.queueIds?.length && !practice && !rec.finished) {
+      queue = tracksFromIds(rec.queueIds);
+    }
+    let reserve = [];
+    if (queue.length < DAILY_SONGS) {
+      const ordered = seededShuffle(CATALOG, utcDateKey()).map((t) => ({ ...t }));
+      queue = ordered.slice(0, DAILY_SONGS);
+      reserve = ordered.slice(DAILY_SONGS);
+    }
+    beginGame(CATALOG.map((t) => ({ ...t })), {
+      kind: "daily",
+      practice: !!practice || !!rec?.finished,
+      mode: "start",
+      guessPool: CATALOG,
+      queue: queue.slice(0, DAILY_SONGS),
+      reserve,
+      qi: !practice && rec && !rec.finished ? (rec.qi || 0) : 0,
+      score: !practice && rec && !rec.finished ? (rec.score || 0) : 0,
+      log: !practice && rec && !rec.finished ? (rec.log || []) : []
+    });
+    if (!practice && !rec?.finished) {
+      writeDaily({
+        date: utcDateKey(),
+        queueIds: state.queue.map((t) => t.id),
+        score: state.score,
+        log: state.log,
+        qi: state.qi,
+        finished: false,
+        practice: false
+      });
+    }
+  }
+
+  function go(target) {
+    if (target === "daily") startDaily(false);
+    else if (target === "custom") {
+      show("custom");
+      setHash("/custom");
+    } else {
+      goHome();
+    }
   }
 
   /* ---------- wiring ---------- */
@@ -741,25 +878,20 @@
     });
   });
 
+  document.querySelectorAll("[data-rounds]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.rounds = btn.dataset.rounds === "all" ? "all" : Number(btn.dataset.rounds);
+      document.querySelectorAll("[data-rounds]").forEach((b) => b.classList.toggle("is-on", b === btn));
+    });
+  });
+
   document.querySelectorAll("[data-source]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       document.querySelectorAll("[data-source]").forEach((b) => b.classList.toggle("is-on", b === btn));
       const src = btn.dataset.source;
       $("paste-box").hidden = src !== "paste";
-      $("spotify-box").hidden = src !== "spotify";
-      if (src === "demo") beginGame(DEMO.map((t) => ({ ...t })));
-      if (src === "spotify") {
-        spotifyReady();
-        if ($("spotify-id") && !window.SONGMORE?.spotifyClientId) {
-          $("spotify-id").value = localStorage.getItem("songmore_spotify_id") || "";
-        }
-        if (await getAccess()) {
-          try {
-            await showSpotifyPlaylists();
-          } catch (err) {
-            $("spotify-status").textContent = err.message || "";
-          }
-        }
+      if (src === "vault") {
+        beginGame(CATALOG.map((t) => ({ ...t })), { kind: "custom", guessPool: CATALOG });
       }
     });
   });
@@ -776,16 +908,15 @@
     status.textContent = "";
     try {
       let tracks = null;
-      if (extractYtPlaylistId(raw)) {
-        tracks = await tracksFromYtLink(raw);
-      }
+      if (extractYtPlaylistId(raw)) tracks = await tracksFromYtLink(raw);
       if (!tracks) tracks = parseList(raw);
-      if (tracks.length < 5) {
-        status.textContent = "Need at least 5 songs. If you pasted a link, the playlist may be private or empty.";
+      const need = state.rounds === "all" ? 1 : Number(state.rounds);
+      if (tracks.length < need) {
+        status.textContent = `Need at least ${need} songs. If you pasted a link, the playlist may be private or empty.`;
         return;
       }
       status.textContent = "";
-      beginGame(tracks);
+      beginGame(tracks, { kind: "custom" });
     } catch (err) {
       status.textContent = err.message || "Could not read that playlist. It has to be public.";
     } finally {
@@ -793,7 +924,6 @@
     }
   });
 
-  $("spotify-login").addEventListener("click", startSpotifyLogin);
   $("play-btn").addEventListener("click", () => playClip());
   $("submit").addEventListener("click", submitGuess);
   $("skip").addEventListener("click", () => {
@@ -810,11 +940,34 @@
     player.pause();
     setSpin(false);
     $("reveal").hidden = true;
-    show("home");
+    if (state.kind === "custom") {
+      show("custom");
+      setHash("/custom");
+    } else goHome();
   });
   $("home-link").addEventListener("click", (e) => {
     e.preventDefault();
-    $("quit").click();
+    goHome();
+  });
+  document.querySelectorAll("[data-go]").forEach((btn) => {
+    btn.addEventListener("click", () => go(btn.dataset.go));
+  });
+  $("go-daily").addEventListener("click", () => startDaily(false));
+  $("go-custom").addEventListener("click", () => go("custom"));
+  $("results-home").addEventListener("click", goHome);
+  $("results-again").addEventListener("click", () => {
+    if (state.kind === "daily" || lastRun?.kind === "daily") startDaily(true);
+    else go("custom");
+  });
+  $("share-btn").addEventListener("click", async () => {
+    if (!lastRun) return;
+    const text = shareText(lastRun);
+    try {
+      await navigator.clipboard.writeText(text);
+      $("share-status").textContent = "Copied.";
+    } catch {
+      $("share-status").textContent = text;
+    }
   });
 
   $("guess").addEventListener("input", () => {
@@ -844,7 +997,7 @@
   $("suggest").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
-    const t = state.tracks.find((x) => x.id === btn.dataset.id);
+    const t = findInPool(btn.dataset.id);
     if (!t) return;
     pickedGuess = t;
     $("guess").value = `${t.title} – ${t.artist}`;
@@ -855,11 +1008,26 @@
     if (!e.target.closest(".guess-wrap")) $("suggest").hidden = true;
   });
 
-  fillBars();
-  $("redirect-uri").textContent = location.protocol === "file:"
-    ? "http://127.0.0.1:8080/"
-    : redirectUri();
-  spotifyReady();
+  window.addEventListener("hashchange", () => {
+    const h = (location.hash || "#/").replace(/^#/, "") || "/";
+    if (h.startsWith("/custom")) go("custom");
+    else if (h.startsWith("/daily")) startDaily(false);
+    else if (h.startsWith("/results") && lastRun) {
+      paintResults(lastRun);
+      show("results");
+    } else if (h.startsWith("/play") && state.current) show("game");
+    else goHome();
+  });
 
-  handleSpotifyReturn().catch((err) => console.warn(err));
+  fillBars();
+  paintHome();
+  clockTimer = setInterval(() => {
+    paintCountdown($("daily-countdown"));
+    paintCountdown($("results-countdown"));
+  }, 30000);
+
+  const h = (location.hash || "#/").replace(/^#/, "") || "/";
+  if (h.startsWith("/custom")) go("custom");
+  else if (h.startsWith("/daily")) startDaily(false);
+  else goHome();
 })();

@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#10110d" />
-  <title>Songmore — guess your own songs</title>
-  <meta name="description" content="Hear one second of a song from your playlist. Guess it. Intro or mid. Spotify, Apple Music, YouTube Music." />
+  <title>Songmore — five songs. one second. guess.</title>
+  <meta name="description" content="Daily music quiz: five songs, same for everyone. Hear a blink. Each second costs 100. Or paste your own playlist." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect fill='%2310110d' width='64' height='64'/><circle cx='32' cy='32' r='18' fill='none' stroke='%23d6ff3f' stroke-width='4'/><circle cx='32' cy='32' r='4' fill='%23d6ff3f'/></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,19 +18,61 @@
 
   <div id="app">
     <header class="top">
-      <a class="mark" href="./" id="home-link">songmore</a>
-      <p class="tag">your songs. one second. guess.</p>
+      <a class="mark" href="#/" id="home-link">songmore</a>
+      <nav class="nav">
+        <button type="button" class="nav-btn" data-go="home">home</button>
+        <button type="button" class="nav-btn" data-go="daily">daily</button>
+        <button type="button" class="nav-btn" data-go="custom">custom</button>
+      </nav>
+      <p class="tag" id="top-date"></p>
     </header>
 
     <section id="view-home" class="view">
-      <div class="hero">
-        <p class="kicker">A music quiz that uses <em>your</em> library</p>
-        <h1>Hear a blink of a track.<br />Name it before it grows.</h1>
+      <div class="hero site-hero">
+        <p class="kicker">a music quiz</p>
+        <h1>songmore</h1>
         <p class="lede">
-          Same idea as Songless: a tiny clip, then you guess.
-          The twist is we rotate through <strong>your</strong> Liked Songs / playlists —
-          Spotify, or a paste from Apple Music / YouTube Music.
+          Five songs. A blink of each. Same daily for everyone on Earth —
+          or paste your own playlist and play as long as you want.
         </p>
+      </div>
+
+      <div class="mode-grid">
+        <button type="button" class="mode-card" id="go-daily">
+          <span class="mode-kicker" id="daily-kicker">today</span>
+          <span class="mode-name">daily</span>
+          <span class="mode-desc">Five tracks from a huge vault. One official run. Each second you hear costs 100.</span>
+          <span class="mode-meta" id="daily-card-meta">Play · /5000</span>
+        </button>
+        <button type="button" class="mode-card" id="go-custom">
+          <span class="mode-kicker">your list</span>
+          <span class="mode-name">custom</span>
+          <span class="mode-desc">Paste a YouTube / YouTube Music link. Pick 5, 10, or the whole thing. Start or mid.</span>
+          <span class="mode-meta">Set it up →</span>
+        </button>
+      </div>
+
+      <p class="rules" id="home-rules">
+        Each song starts at <strong>1000</strong>. Hearing a second costs <strong>100</strong>.
+        A wrong guess costs <strong>100</strong>. Give up and that song is zero.
+      </p>
+      <p class="countdown" id="daily-countdown"></p>
+    </section>
+
+    <section id="view-custom" class="view" hidden>
+      <div class="hero">
+        <p class="kicker">custom</p>
+        <h1>Your playlist.<br />Your length.</h1>
+        <p class="lede">Paste a public list, pick how many songs, then play. Same scoring as daily.</p>
+      </div>
+
+      <div class="panel">
+        <div class="row-label">How many</div>
+        <div class="seg three" role="tablist" aria-label="Rounds">
+          <button type="button" class="seg-btn is-on" data-rounds="5">5</button>
+          <button type="button" class="seg-btn" data-rounds="10">10</button>
+          <button type="button" class="seg-btn" data-rounds="all">All</button>
+        </div>
       </div>
 
       <div class="panel">
@@ -45,69 +87,38 @@
       <div class="panel">
         <div class="row-label">Where the songs come from</div>
         <div class="sources">
-          <button type="button" class="source" data-source="demo">
-            <span class="source-name">Radio hits</span>
-            <span class="source-desc">Built-in mix. Play instantly.</span>
-          </button>
-          <button type="button" class="source" data-source="paste">
+          <button type="button" class="source is-on" data-source="paste">
             <span class="source-name">Paste a playlist</span>
-            <span class="source-desc">YouTube Music link, or a list of songs.</span>
+            <span class="source-desc">YouTube / YouTube Music link, or a list of songs.</span>
           </button>
-          <button type="button" class="source" data-source="spotify">
-            <span class="source-name">Spotify</span>
-            <span class="source-desc">Login, or transfer to YouTube Music first.</span>
+          <button type="button" class="source" data-source="vault">
+            <span class="source-name">The vault</span>
+            <span class="source-desc">Play the built-in library, shuffled.</span>
           </button>
         </div>
       </div>
 
-      <div id="paste-box" class="panel extra" hidden>
+      <div id="paste-box" class="panel extra">
         <div class="row-label">Link or list</div>
         <p class="hint">
           Paste a <strong>public</strong> YouTube / YouTube Music playlist URL, or songs as <code>Song – Artist</code>.
-          Coming from Spotify? Move the playlist with
-          <a href="https://www.tunemymusic.com/transfer/spotify-to-youtube-music" target="_blank" rel="noreferrer">TuneMyMusic</a>,
-          make the new YouTube Music playlist public, then paste that link here.
         </p>
         <textarea id="paste-input" rows="8" placeholder="https://music.youtube.com/playlist?list=…&#10;&#10;or&#10;&#10;Blinding Lights – The Weeknd&#10;Mr. Brightside – The Killers"></textarea>
-        <button type="button" class="btn lime" id="paste-go">Use this playlist</button>
+        <button type="button" class="btn lime" id="paste-go">Play this list</button>
         <p class="hint" id="paste-status"></p>
-      </div>
-
-      <div id="spotify-box" class="panel extra" hidden>
-        <div class="row-label">Spotify</div>
-        <p class="hint" id="spotify-player-hint">
-          Log in if the Spotify API is available on this app.
-          Easier path: copy the playlist to YouTube Music with
-          <a href="https://www.tunemymusic.com/transfer/spotify-to-youtube-music" target="_blank" rel="noreferrer">TuneMyMusic</a>,
-          then use <strong>Paste a playlist</strong>.
-        </p>
-        <div id="spotify-setup">
-          <p class="hint">
-            One-time setup for you, not for players. Create an app at
-            <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer">developer.spotify.com/dashboard</a>,
-            add this Redirect URI, put the Client ID in <code>config.js</code>.
-          </p>
-          <p class="uri" id="redirect-uri"></p>
-          <label class="field">
-            <span>Client ID (owner only)</span>
-            <input id="spotify-id" type="text" autocomplete="off" spellcheck="false" placeholder="paste your Spotify client id" />
-          </label>
-        </div>
-        <button type="button" class="btn lime" id="spotify-login">Log in with Spotify</button>
-        <p class="hint" id="spotify-status"></p>
-        <div id="playlist-list" class="plist" hidden></div>
       </div>
     </section>
 
     <section id="view-game" class="view" hidden>
       <div class="game-bar">
-        <button type="button" class="text-btn" id="quit">← setup</button>
+        <button type="button" class="text-btn" id="quit">← back</button>
         <div class="stats">
-          <span id="stat-mode">start</span>
-          <span id="stat-round">1 / 1</span>
-          <span id="stat-score">0 pts</span>
+          <span id="stat-kind">daily</span>
+          <span id="stat-round">1 / 5</span>
+          <span id="stat-score">0</span>
         </div>
       </div>
+      <p class="game-banner" id="game-banner" hidden></p>
 
       <div class="stage">
         <div class="disc-wrap" id="disc-wrap">
@@ -118,7 +129,7 @@
           </div>
           <div class="bars" id="bars" aria-hidden="true"></div>
         </div>
-        <p class="clip-meta" id="clip-meta">1.0s · start</p>
+        <p class="clip-meta" id="clip-meta">1.0s · worth 900</p>
         <button type="button" class="play-btn" id="play-btn">
           <span class="play-icon">▶</span>
           <span id="play-label">Play 1 second</span>
@@ -133,11 +144,28 @@
         <ul id="suggest" class="suggest" hidden></ul>
         <div class="actions">
           <button type="button" class="btn lime" id="submit">Guess</button>
-          <button type="button" class="btn ghost" id="skip">Hear more</button>
-          <button type="button" class="btn ghost" id="giveup">Reveal</button>
+          <button type="button" class="btn ghost" id="skip">Hear more −100</button>
+          <button type="button" class="btn ghost" id="giveup">Give up</button>
         </div>
-        <p class="hint" id="game-hint">Wrong guess or “hear more” unlocks a longer clip.</p>
+        <p class="hint" id="game-hint">Each extra second costs 100. A miss costs 100 and unlocks more.</p>
       </div>
+    </section>
+
+    <section id="view-results" class="view" hidden>
+      <div class="hero results-hero">
+        <p class="kicker" id="results-kicker">daily</p>
+        <p class="results-date" id="results-date"></p>
+        <p class="results-score" id="results-score">0<span>/5000</span></p>
+        <p class="lede" id="results-blurb"></p>
+      </div>
+      <ol class="score-list" id="score-list"></ol>
+      <div class="results-actions">
+        <button type="button" class="btn lime" id="share-btn">Copy score</button>
+        <button type="button" class="btn ghost" id="results-again">Play again</button>
+        <button type="button" class="btn ghost" id="results-home">Home</button>
+      </div>
+      <p class="hint" id="share-status"></p>
+      <p class="countdown" id="results-countdown"></p>
     </section>
 
     <div id="reveal" class="reveal" hidden>
@@ -153,10 +181,10 @@
   </div>
 
   <footer class="foot">
-    <p>Clips are 30-second store previews. We never stream the full song. Open this folder with a local server if Spotify login is used.</p>
+    <p>Clips are 30-second store previews. We never stream the full song. Each second you hear costs 100 points. A wrong guess costs 100.</p>
   </footer>
 
-  <script src="config.js"></script>
+  <script src="catalog.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
