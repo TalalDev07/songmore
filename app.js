@@ -19,6 +19,7 @@
   let ytReadyVideo = "";
   let ytStartedVideo = "";
   let ytWantPlay = false;
+  let ytAwaitPlaying = false;
   let ytPlayGen = 0;
   const previewCache = new Map();
   let stopTimer = 0;
@@ -86,6 +87,7 @@
   function stopClip() {
     clearTimeout(stopTimer);
     ytWantPlay = false;
+    ytAwaitPlaying = false;
     player.pause();
     try {
       if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
@@ -609,8 +611,15 @@
             resolve(ytPlayer);
           },
           onStateChange: (e) => {
-            if (e.data === 1) setSpin(true);
-            else if (e.data === 2 || e.data === 0) setSpin(false);
+            if (e.data === 1) {
+              setSpin(true);
+              if (ytAwaitPlaying) {
+                ytAwaitPlaying = false;
+                armClipStop(clipLen());
+              }
+            } else if (e.data === 2 || e.data === 0) {
+              setSpin(false);
+            }
             if (ytWantPlay && e.data === 5) {
               try { ytPlayer.playVideo(); } catch { /* ignore */ }
             }
@@ -624,6 +633,7 @@
   function cueTrack(videoId) {
     if (!ytPlayer || !videoId || !ytPlayer.cueVideoById) return;
     const start = clipStart();
+    ytStartedVideo = "";
     if (ytReadyVideo === videoId) {
       try {
         ytPlayer.pauseVideo();
@@ -639,36 +649,47 @@
     }
   }
 
-  function playYtClipNow(videoId) {
-    if (!ytPlayer || !ytPlayerReady || !ytPlayer.playVideo) return false;
-    const start = clipStart();
-    const len = clipLen();
-    ytWantPlay = true;
-    try {
-      ytPlayer.unMute();
-      ytPlayer.setVolume(100);
-      const already = ytReadyVideo === videoId && ytStartedVideo === videoId;
-      if (!already) {
-        ytPlayer.loadVideoById({ videoId, startSeconds: start });
-        ytReadyVideo = videoId;
-        ytStartedVideo = videoId;
-      } else {
-        ytPlayer.seekTo(start, true);
-      }
-      ytPlayer.playVideo();
-    } catch {
-      ytWantPlay = false;
-      return false;
-    }
-    setSpin(true);
+  function armClipStop(len) {
     clearTimeout(stopTimer);
     const gen = ++ytPlayGen;
     stopTimer = setTimeout(() => {
       if (gen !== ytPlayGen) return;
       ytWantPlay = false;
+      ytAwaitPlaying = false;
       try { ytPlayer.pauseVideo(); } catch { /* ignore */ }
+      try { ytPlayer.seekTo(clipStart(), true); } catch { /* ignore */ }
       setSpin(false);
     }, len * 1000 + 80);
+  }
+
+  function playYtClipNow(videoId) {
+    if (!ytPlayer || !ytPlayerReady || !ytPlayer.playVideo) return false;
+    const start = clipStart();
+    const len = clipLen();
+    ytWantPlay = true;
+    ytAwaitPlaying = true;
+    try {
+      ytPlayer.unMute();
+      ytPlayer.setVolume(100);
+      if (ytReadyVideo === videoId) {
+        if (ytStartedVideo === videoId) ytPlayer.seekTo(start, true);
+        ytPlayer.playVideo();
+      } else {
+        ytPlayer.loadVideoById({ videoId, startSeconds: start });
+        ytReadyVideo = videoId;
+      }
+      ytStartedVideo = videoId;
+    } catch {
+      ytWantPlay = false;
+      ytAwaitPlaying = false;
+      return false;
+    }
+    setSpin(true);
+    const st = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
+    if (st === 1) {
+      ytAwaitPlaying = false;
+      armClipStop(len);
+    }
     return true;
   }
 
