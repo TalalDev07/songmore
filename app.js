@@ -34,7 +34,8 @@
     score: 0,
     log: [],
     current: null,
-    busy: false
+    busy: false,
+    wanted: 5
   };
 
   function art(url) {
@@ -665,15 +666,53 @@
     return pool.find((t) => norm(t.title + " " + t.artist) === n || norm(t.title) === n) || null;
   }
 
-  function beginGame(tracks, opts) {
+  function setupStatus(msg) {
+    const a = $("setup-status");
+    const b = $("paste-status");
+    if (a) a.textContent = msg || "";
+    if (b && msg) b.textContent = msg;
+  }
+
+  async function collectPlayable(pool, want, onProgress) {
+    const picked = [];
+    for (let i = 0; i < pool.length && picked.length < want; i++) {
+      if (onProgress) onProgress(picked.length, want);
+      try {
+        await resolvePreview(pool[i]);
+        picked.push(pool[i]);
+      } catch {
+        /* no matching preview — keep looking */
+      }
+    }
+    return picked;
+  }
+
+  async function beginGame(tracks, opts) {
     const options = opts || {};
     state.kind = options.kind || "custom";
     state.practice = !!options.practice;
     state.mode = options.mode || state.mode;
     state.tracks = tracks;
     state.guessPool = options.guessPool || tracks;
-    state.queue = options.queue || takeRounds(tracks);
-    state.reserve = options.reserve || [];
+    const want = options.want
+      || (options.queue && options.queue.length)
+      || (state.rounds === "all" ? tracks.length : Number(state.rounds) || 5);
+    let queue = options.queue;
+    let reserve = options.reserve || [];
+    if (!queue) {
+      const ordered = shuffle(tracks);
+      queue = await collectPlayable(ordered, want, (have, need) => {
+        setupStatus(`Finding playable clips… ${have}/${need}`);
+      });
+      reserve = ordered.filter((t) => !queue.includes(t));
+    }
+    if (!queue.length) {
+      setupStatus("None of those songs had a matching store preview. Try another list.");
+      return false;
+    }
+    state.queue = queue;
+    state.reserve = reserve;
+    state.wanted = want;
     state.qi = options.qi || 0;
     state.score = options.score || 0;
     state.log = options.log ? options.log.slice() : [];
@@ -684,18 +723,17 @@
     if (state.practice) {
       banner.hidden = false;
       banner.textContent = "Practice — today’s official score is already locked.";
+    } else if (queue.length < want && state.rounds !== "all") {
+      banner.hidden = false;
+      banner.textContent = `Only ${queue.length} of ${want} had a matching preview. Playing those.`;
     } else {
       banner.hidden = true;
     }
+    setupStatus("");
     show("game");
     setHash("/play");
     dealRound();
-  }
-
-  function takeRounds(tracks) {
-    const shuffled = shuffle(tracks);
-    if (state.rounds === "all") return shuffled;
-    return shuffled.slice(0, Math.min(Number(state.rounds) || 5, shuffled.length));
+    return true;
   }
 
   function finishRun() {
@@ -824,22 +862,23 @@
       return;
     }
     let queue = [];
+    let reserve = [];
     if (rec?.queueIds?.length && !practice && !rec.finished) {
       queue = tracksFromIds(rec.queueIds);
     }
-    let reserve = [];
     if (queue.length < DAILY_SONGS) {
       const ordered = seededShuffle(CATALOG, utcDateKey()).map((t) => ({ ...t }));
-      queue = ordered.slice(0, DAILY_SONGS);
-      reserve = ordered.slice(DAILY_SONGS);
+      queue = await collectPlayable(ordered, DAILY_SONGS);
+      reserve = ordered.filter((t) => !queue.includes(t));
     }
-    beginGame(CATALOG.map((t) => ({ ...t })), {
+    await beginGame(CATALOG.map((t) => ({ ...t })), {
       kind: "daily",
       practice: !!practice || !!rec?.finished,
       mode: "start",
       guessPool: CATALOG,
-      queue: queue.slice(0, DAILY_SONGS),
+      queue,
       reserve,
+      want: DAILY_SONGS,
       qi: !practice && rec && !rec.finished ? (rec.qi || 0) : 0,
       score: !practice && rec && !rec.finished ? (rec.score || 0) : 0,
       log: !practice && rec && !rec.finished ? (rec.log || []) : []
@@ -891,7 +930,8 @@
       const src = btn.dataset.source;
       $("paste-box").hidden = src !== "paste";
       if (src === "vault") {
-        beginGame(CATALOG.map((t) => ({ ...t })), { kind: "custom", guessPool: CATALOG });
+        setupStatus("Finding playable clips…");
+        await beginGame(CATALOG.map((t) => ({ ...t })), { kind: "custom", guessPool: CATALOG });
       }
     });
   });
@@ -915,8 +955,8 @@
         status.textContent = `Need at least ${need} songs. If you pasted a link, the playlist may be private or empty.`;
         return;
       }
-      status.textContent = "";
-      beginGame(tracks, { kind: "custom" });
+      status.textContent = "Finding playable clips…";
+      await beginGame(tracks, { kind: "custom" });
     } catch (err) {
       status.textContent = err.message || "Could not read that playlist. It has to be public.";
     } finally {
