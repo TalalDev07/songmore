@@ -14,7 +14,7 @@
   const player = $("player");
   let ytPlayer = null;
   let ytApiReady = null;
-  let ytWantStart = 5;
+  let ytReadyVideo = "";
   const previewCache = new Map();
   let stopTimer = 0;
   let suggestIndex = 0;
@@ -70,6 +70,12 @@
 
   function canPlay(track) {
     return !!(ytId(track) || (track && track.preview));
+  }
+
+  function trackArt(track) {
+    if (track && track.art) return track.art;
+    const id = ytId(track);
+    return id ? "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg" : "";
   }
 
   function stopClip() {
@@ -554,6 +560,14 @@
     return ytApiReady;
   }
 
+  function clipStart() {
+    if (state.mode === "mid") {
+      const dur = ytPlayer && ytPlayer.getDuration && ytPlayer.getDuration();
+      return dur && dur > CLIP_START + clipLen() + 4 ? Math.max(CLIP_START, dur * 0.45) : 45;
+    }
+    return CLIP_START;
+  }
+
   function ensureYtPlayer() {
     return loadYtApi().then(() => new Promise((resolve) => {
       if (ytPlayer && ytPlayer.playVideo) {
@@ -571,48 +585,56 @@
           modestbranding: 1,
           playsinline: 1,
           rel: 0,
-          start: CLIP_START,
           origin: location.origin
         },
         events: {
-          onReady: () => resolve(ytPlayer),
-          onStateChange: (e) => {
-            if (!window.YT || e.data !== window.YT.PlayerState.PLAYING) return;
-            const t = ytPlayer.getCurrentTime && ytPlayer.getCurrentTime();
-            if (typeof t === "number" && t < ytWantStart - 0.4) {
-              ytPlayer.seekTo(ytWantStart, true);
-            }
-          }
+          onReady: () => resolve(ytPlayer)
         }
       });
     }));
   }
 
-  function playYtClipNow(videoId) {
-    if (!ytPlayer || !ytPlayer.loadVideoById) return false;
-    const len = clipLen();
-    let start = CLIP_START;
-    if (state.mode === "mid") {
-      const dur = ytPlayer.getDuration && ytPlayer.getDuration();
-      start = dur && dur > CLIP_START + len + 4 ? Math.max(CLIP_START, dur * 0.45) : 45;
+  function cueTrack(videoId) {
+    if (!ytPlayer || !videoId || !ytPlayer.cueVideoById) return;
+    const start = clipStart();
+    if (ytReadyVideo === videoId) {
+      try {
+        ytPlayer.pauseVideo();
+        ytPlayer.seekTo(start, true);
+      } catch { /* ignore */ }
+      return;
     }
-    ytWantStart = start;
-    try { ytPlayer.unMute(); ytPlayer.setVolume(100); } catch { /* ignore */ }
-    ytPlayer.loadVideoById({
-      videoId,
-      startSeconds: start,
-      endSeconds: start + len
-    });
+    ytReadyVideo = videoId;
     try {
-      ytPlayer.seekTo(start, true);
+      ytPlayer.cueVideoById({ videoId, startSeconds: start });
+    } catch {
+      ytReadyVideo = "";
+    }
+  }
+
+  function playYtClipNow(videoId) {
+    if (!ytPlayer || !ytPlayer.playVideo) return false;
+    const start = clipStart();
+    const len = clipLen();
+    try {
+      ytPlayer.unMute();
+      ytPlayer.setVolume(100);
+      if (ytReadyVideo !== videoId) {
+        ytPlayer.loadVideoById({ videoId, startSeconds: start });
+        ytReadyVideo = videoId;
+      } else {
+        ytPlayer.seekTo(start, true);
+      }
       ytPlayer.playVideo();
-    } catch { /* ignore */ }
+    } catch {
+      return false;
+    }
     setSpin(true);
     clearTimeout(stopTimer);
     stopTimer = setTimeout(() => {
       try { ytPlayer.pauseVideo(); } catch { /* ignore */ }
       setSpin(false);
-    }, len * 1000 + 120);
+    }, len * 1000 + 80);
     return true;
   }
 
@@ -770,13 +792,16 @@
     }
     state.attempt = 0;
     state.misses = 0;
-    $("disc-art").style.backgroundImage = state.current.art ? `url("${state.current.art}")` : "";
+    $("disc-art").style.backgroundImage = "";
     $("disc-art").style.filter = "blur(14px) saturate(0.5)";
     $("disc-art").style.opacity = "0.55";
     $("reveal-art").hidden = true;
+    $("reveal-art").removeAttribute("src");
     paintClipMeta();
-    const nxt = state.queue[state.qi + 1];
-    if (nxt) resolvePreview(nxt).catch(() => {});
+    const id = ytId(state.current);
+    if (id) {
+      ensureYtPlayer().then(() => cueTrack(id)).catch(() => {});
+    }
   }
 
   function recordSong(ok) {
@@ -818,11 +843,13 @@
     $("reveal-title").textContent = state.current.title;
     $("reveal-artist").textContent = state.current.artist;
     $("reveal-score").textContent = ok ? `+${pts} · ${state.score} total` : `0 · ${state.score} total`;
+    const art = trackArt(state.current);
+    $("disc-art").style.backgroundImage = art ? `url("${art}")` : "";
     $("disc-art").style.filter = "blur(0) saturate(1)";
     $("disc-art").style.opacity = "1";
     const artEl = $("reveal-art");
-    if (state.current.art) {
-      artEl.src = state.current.art;
+    if (art) {
+      artEl.src = art;
       artEl.hidden = false;
     } else {
       artEl.removeAttribute("src");
@@ -932,7 +959,7 @@
     setupStatus("");
     show("game");
     setHash("/play");
-    if (queue.some((t) => ytId(t))) ensureYtPlayer().catch(() => {});
+    await ensureYtPlayer().catch(() => {});
     dealRound();
     return true;
   }
