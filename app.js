@@ -677,13 +677,7 @@
     try {
       const liveState = ytLive.getPlayerState ? ytLive.getPlayerState() : -1;
       const nextState = ytNext && ytNext.getPlayerState ? ytNext.getPlayerState() : -1;
-      const nextReady = ytNext && ytNextId === videoId && nextState !== -1 && nextState !== 0;
-      if (ytLiveId === videoId && (liveState === 1 || liveState === 2)) {
-        ytLive.unMute();
-        ytLive.setVolume(100);
-        ytLive.seekTo(start, true);
-        ytLive.playVideo();
-      } else if (nextReady) {
+      if (ytNext && ytNextId === videoId) {
         try { ytLive.pauseVideo(); ytLive.mute(); } catch { /* ignore */ }
         const swap = ytLive;
         ytLive = ytNext;
@@ -692,10 +686,20 @@
         ytNextId = "";
         ytLive.unMute();
         ytLive.setVolume(100);
-        ytLive.seekTo(start, true);
+        if (nextState === 1 || nextState === 2 || nextState === 3 || nextState === 5) {
+          ytLive.seekTo(start, true);
+          ytLive.playVideo();
+        } else {
+          ytLive.loadVideoById({ videoId, startSeconds: start });
+        }
+      } else if (ytLiveId === videoId && liveState !== 0) {
+        ytLive.unMute();
+        ytLive.setVolume(100);
+        if (liveState === 1 || liveState === 2 || liveState === 3) ytLive.seekTo(start, true);
         ytLive.playVideo();
       } else {
-        if (ytNextId === videoId) ytNextId = "";
+        try { if (ytNext) ytNext.pauseVideo(); } catch { /* ignore */ }
+        ytNextId = "";
         ytLive.unMute();
         ytLive.setVolume(100);
         ytLive.loadVideoById({ videoId, startSeconds: start });
