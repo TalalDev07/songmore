@@ -671,13 +671,15 @@
     try {
       ytPlayer.unMute();
       ytPlayer.setVolume(100);
-      if (ytReadyVideo === videoId) {
-        if (ytStartedVideo === videoId) ytPlayer.seekTo(start, true);
+      const st = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
+      const sameClip = ytStartedVideo === videoId && (st === 1 || st === 2);
+      if (sameClip) {
+        ytPlayer.seekTo(start, true);
         ytPlayer.playVideo();
       } else {
         ytPlayer.loadVideoById({ videoId, startSeconds: start });
-        ytReadyVideo = videoId;
       }
+      ytReadyVideo = videoId;
       ytStartedVideo = videoId;
     } catch {
       ytWantPlay = false;
@@ -742,14 +744,9 @@
       $("game-hint").textContent = "Each extra second costs 100. A miss costs 100 and unlocks more.";
       return;
     }
-    $("game-hint").textContent = "Starting player…";
-    $("play-btn").disabled = true;
     ensureYtPlayer().then(() => {
-      $("play-btn").disabled = false;
       if (ytId(state.current) === id) playYtClipNow(id);
-      paintClipMeta();
     }).catch(() => {
-      $("play-btn").disabled = false;
       $("game-hint").textContent = "YouTube player failed to load. Refresh and try again.";
     });
   }
@@ -758,10 +755,8 @@
     const len = clipLen();
     const worth = songValue();
     $("clip-meta").textContent = `${len.toFixed(1)}s · worth ${worth}`;
-    $("play-btn").disabled = !ytPlayerReady;
-    $("play-label").textContent = ytPlayerReady
-      ? `Play ${len} second${len === 1 ? "" : "s"}`
-      : "Get ready…";
+    $("play-btn").disabled = false;
+    $("play-label").textContent = `Play ${len} second${len === 1 ? "" : "s"}`;
     $("stat-kind").textContent = state.practice ? "practice" : state.kind;
     $("stat-round").textContent = `${state.qi + 1} / ${state.queue.length}`;
     $("stat-score").textContent = `${state.score}`;
@@ -860,10 +855,9 @@
     $("reveal-art").hidden = true;
     $("reveal-art").removeAttribute("src");
     paintClipMeta();
-    const id = ytId(state.current);
-    if (id) {
-      ensureYtPlayer().then(() => cueTrack(id)).catch(() => {});
-    }
+    ytReadyVideo = "";
+    ytStartedVideo = "";
+    ensureYtPlayer().catch(() => {});
   }
 
   function recordSong(ok) {
