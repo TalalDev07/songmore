@@ -109,6 +109,25 @@
     return a;
   }
 
+  function songKey(t) {
+    return norm(t.title) + "|" + norm(t.artist);
+  }
+
+  function loadRecent() {
+    try {
+      return JSON.parse(localStorage.getItem("songmore_recent") || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  function rememberPlayed(tracks) {
+    const prev = loadRecent();
+    const keys = tracks.map(songKey).filter(Boolean);
+    const next = keys.concat(prev.filter((k) => !keys.includes(k))).slice(0, 80);
+    localStorage.setItem("songmore_recent", JSON.stringify(next));
+  }
+
   function clipLen() {
     return CLIP_STEPS[Math.min(state.attempt, CLIP_STEPS.length - 1)];
   }
@@ -219,49 +238,93 @@
     return { title: name || title, artist: artist || "Unknown" };
   }
 
+  function videoKey(v) {
+    return v.videoId
+      || (String(v.url || "").match(/[?&]v=([\w-]{11})/) || [])[1]
+      || (String(v.url || "").split("/watch?v=")[1] || "").slice(0, 11)
+      || "";
+  }
+
+  function pushVideos(merged, seen, vids) {
+    let added = 0;
+    (vids || []).forEach((v) => {
+      const vid = videoKey(v) || v.title;
+      if (!vid || seen.has(vid)) return;
+      seen.add(vid);
+      if (!v.videoId && vid.length === 11) v.videoId = vid;
+      merged.push(v);
+      added += 1;
+    });
+    return added;
+  }
+
+  async function fetchInvidiousPlaylist(base, id, seen, merged, onPage) {
+    let title = "";
+    let videoCount = 0;
+    for (let page = 1; page <= 30; page++) {
+      onPage("Reading playlist… page " + page + " · " + merged.length + " songs");
+      const res = await fetch(base + id + "?page=" + page);
+      if (!res.ok) break;
+      const data = await res.json();
+      title = data.title || data.name || title;
+      videoCount = data.videoCount || videoCount;
+      const added = pushVideos(merged, seen, data.videos || []);
+      if (!added) break;
+      if (videoCount && merged.length >= videoCount) break;
+    }
+    return { title, videoCount };
+  }
+
+  async function fetchPipedPlaylist(origin, id, seen, merged, onPage) {
+    let title = "";
+    let videoCount = 0;
+    let next = null;
+    for (let i = 0; i < 30; i++) {
+      onPage("Reading playlist… " + merged.length + " songs");
+      const url = i === 0
+        ? origin + "/playlists/" + id
+        : origin + "/nextpage/playlists/" + id + "?nextpage=" + encodeURIComponent(next);
+      const res = await fetch(url);
+      if (!res.ok) break;
+      const data = await res.json();
+      title = data.name || data.title || title;
+      videoCount = data.videos || data.videoCount || videoCount;
+      const added = pushVideos(merged, seen, data.relatedStreams || data.videos || []);
+      next = data.nextpage;
+      if (!next || !added) break;
+    }
+    return { title, videoCount };
+  }
+
   async function fetchPlaylistJson(id) {
-    const hosts = [
-      "https://inv.nadeko.net/api/v1/playlists/",
-      "https://invidious.nerdvpn.de/api/v1/playlists/",
-      "https://api.piped.private.coffee/playlists/"
-    ];
+    const seen = new Set();
+    const merged = [];
+    let title = "";
+    let videoCount = 0;
     let lastErr = null;
-    for (const host of hosts) {
+    const onPage = (msg) => {
+      if ($("paste-status")) $("paste-status").textContent = msg;
+      if ($("setup-status")) $("setup-status").textContent = msg;
+    };
+    const sources = [
+      () => fetchInvidiousPlaylist("https://inv.nadeko.net/api/v1/playlists/", id, seen, merged, onPage),
+      () => fetchPipedPlaylist("https://api.piped.private.coffee", id, seen, merged, onPage),
+      () => fetchInvidiousPlaylist("https://invidious.nerdvpn.de/api/v1/playlists/", id, seen, merged, onPage),
+      () => fetchPipedPlaylist("https://pipedapi.kavin.rocks", id, seen, merged, onPage)
+    ];
+    for (const src of sources) {
       try {
-        const merged = [];
-        const seenVid = new Set();
-        let title = "";
-        let videoCount = 0;
-        for (let page = 1; page <= 12; page++) {
-          const url = host.includes("piped") ? host + id : host + id + "?page=" + page;
-          $("paste-status").textContent = page === 1 ? "Reading playlist…" : "Reading playlist… page " + page;
-          const res = await fetch(url);
-          if (!res.ok) {
-            lastErr = new Error("HTTP " + res.status);
-            break;
-          }
-          const data = await res.json();
-          const vids = data.videos || data.relatedStreams || [];
-          title = data.title || data.name || title;
-          videoCount = data.videoCount || data.videos?.length || videoCount;
-          let added = 0;
-          vids.forEach((v) => {
-            const vid = v.videoId || v.url || v.title;
-            if (!vid || seenVid.has(vid)) return;
-            seenVid.add(vid);
-            merged.push(v);
-            added += 1;
-          });
-          if (!added) break;
-          if (videoCount && merged.length >= videoCount) break;
-          if (host.includes("piped")) break;
-        }
-        if (merged.length) return { title, videos: merged, videoCount };
+        const meta = await src();
+        title = title || meta.title;
+        videoCount = Math.max(videoCount, Number(meta.videoCount) || 0);
+        onPage("Reading playlist… " + merged.length + (videoCount ? " / " + videoCount : "") + " songs");
+        if (videoCount && merged.length >= videoCount) break;
       } catch (err) {
         lastErr = err;
       }
     }
-    throw lastErr || new Error("Could not read that playlist.");
+    if (!merged.length) throw lastErr || new Error("Could not read that playlist.");
+    return { title, videos: merged, videoCount };
   }
 
   function videosFromPlaylist(data) {
@@ -292,7 +355,11 @@
     const data = await fetchPlaylistJson(id);
     const tracks = videosFromPlaylist(data);
     const name = data.title || data.name || "playlist";
-    $("paste-status").textContent = `Loaded ${tracks.length} songs from “${name}”.`;
+    const total = data.videoCount && data.videoCount > tracks.length
+      ? `${tracks.length} of ${data.videoCount}`
+      : String(tracks.length);
+    $("paste-status").textContent = `Loaded ${total} songs from “${name}”.`;
+    if ($("setup-status")) $("setup-status").textContent = $("paste-status").textContent;
     return tracks;
   }
 
@@ -328,16 +395,27 @@
     return need.every((w) => have.some((h) => wordEq(w, h)));
   }
 
-  function titlesAlign(want, got) {
-    const a = stripTitleJunk(want);
+  function stripArtistFromTitle(title, artist) {
+    const artistWords = contentWords(artist);
+    if (!artistWords.length) return stripTitleJunk(title);
+    const kept = stripTitleJunk(title).split(" ").filter((w) => w && !artistWords.some((a) => wordEq(w, a)));
+    return (kept.join(" ") || stripTitleJunk(title)).trim();
+  }
+
+  function titlesAlign(want, got, artist) {
+    const a = stripArtistFromTitle(want, artist);
     const b = stripTitleJunk(got);
     if (!a || !b) return 0;
     if (a === b) return 8;
-    const ta = contentWords(want);
-    const tb = contentWords(got);
+    const ta = contentWords(a);
+    const tb = contentWords(b);
     if (!ta.length || !tb.length) return 0;
-    if (!wordsCovered(ta, tb) || !wordsCovered(tb, ta)) return 0;
-    return 6;
+    const playlistExtra = ta.filter((w) => !tb.some((h) => wordEq(w, h)));
+    const itunesExtra = tb.filter((w) => !ta.some((h) => wordEq(w, h)));
+    if (playlistExtra.length) return 0;
+    if (!itunesExtra.length) return 6;
+    if (itunesExtra.length <= 2) return 5;
+    return 0;
   }
 
   function artistsAlign(want, got) {
@@ -345,64 +423,100 @@
     const b = norm(got);
     if (!a) return 0;
     if (a === b) return 4;
-    if (a.includes(b) || b.includes(a)) return 3;
+    if (Math.min(a.length, b.length) >= 4 && (a.includes(b) || b.includes(a))) return 3;
     const ta = contentWords(want);
     const tb = contentWords(got);
     if (ta.length && tb.length && wordsCovered(ta, tb)) return 3;
-    if (ta.some((w) => tb.some((h) => wordEq(w, h)))) return 1;
+    if (ta.length >= 2 && ta.some((w) => w.length >= 4 && tb.some((h) => wordEq(w, h)))) return 1;
     return 0;
   }
 
   function previewAcceptable(track, result) {
-    const tScore = titlesAlign(track.title, result.trackName);
+    const tScore = titlesAlign(track.title, result.trackName, track.artist);
     if (!tScore) return 0;
     const aScore = artistsAlign(track.artist, result.artistName);
-    const shortTitle = contentWords(track.title).length < 2;
-    if (shortTitle && aScore < 2) return 0;
-    if (tScore < 8 && aScore < 2) return 0;
+    const words = contentWords(stripArtistFromTitle(track.title, track.artist));
+    const hasArtist = !!norm(track.artist) && norm(track.artist) !== "unknown";
+    if (hasArtist && aScore < 2) return 0;
+    if (words.length <= 2 && aScore < 3) return 0;
+    if (!hasArtist && words.length < 3) return 0;
     return tScore * 10 + aScore;
   }
 
+  function sleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
   async function itunesSongs(term) {
-    const url = "https://itunes.apple.com/search?term=" + encodeURIComponent(term) + "&entity=song&limit=15";
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.results || [];
+    const url = "https://itunes.apple.com/search?term=" + encodeURIComponent(term) + "&entity=song&limit=10";
+    let lastErr = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(url, {
+          signal: (typeof AbortSignal !== "undefined" && AbortSignal.timeout)
+            ? AbortSignal.timeout(8000)
+            : undefined
+        });
+        if (res.status === 429 || res.status >= 500) {
+          lastErr = new Error("lookup");
+          await sleep(350 * (attempt + 1));
+          continue;
+        }
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.results || [];
+      } catch (err) {
+        lastErr = err;
+        await sleep(300 * (attempt + 1));
+      }
+    }
+    if (lastErr) throw new Error("lookup");
+    return [];
   }
 
   async function resolvePreview(track) {
     if (track.preview) return track;
     const key = norm(track.title) + "|" + norm(track.artist);
     if (previewCache.has(key)) {
-      Object.assign(track, previewCache.get(key));
+      const cached = previewCache.get(key);
+      if (cached === "miss") throw new Error("no preview");
+      Object.assign(track, cached);
       return track;
     }
     const queries = [];
-    if (track.artist) {
+    if (track.artist && norm(track.artist) !== "unknown") {
       queries.push(track.title + " " + track.artist);
       queries.push('"' + track.title + '" ' + track.artist);
+    } else {
+      queries.push(track.title);
     }
-    queries.push(track.title);
-    queries.push('"' + track.title + '"');
 
     let best = null;
     let bestScore = 0;
+    let lookupFailed = false;
     const seen = new Set();
     for (const q of queries) {
-      const rows = await itunesSongs(q);
-      for (const r of rows) {
-        if (!r.previewUrl || seen.has(r.previewUrl)) continue;
-        seen.add(r.previewUrl);
-        const s = previewAcceptable(track, r);
-        if (s > bestScore) {
-          bestScore = s;
-          best = r;
+      try {
+        const rows = await itunesSongs(q);
+        for (const r of rows) {
+          if (!r.previewUrl || seen.has(r.previewUrl)) continue;
+          seen.add(r.previewUrl);
+          const s = previewAcceptable(track, r);
+          if (s > bestScore) {
+            bestScore = s;
+            best = r;
+          }
         }
+      } catch {
+        lookupFailed = true;
       }
-      if (bestScore >= 80) break;
+      if (bestScore >= 60) break;
     }
-    if (!best) throw new Error("no preview");
+    if (!best && lookupFailed) throw new Error("lookup");
+    if (!best) {
+      previewCache.set(key, "miss");
+      throw new Error("no preview");
+    }
     const extra = {
       preview: best.previewUrl,
       art: art(best.artworkUrl100 || ""),
@@ -537,7 +651,7 @@
   function sameTrack(a, b) {
     if (!a || !b) return false;
     if (a.id && b.id && a.id === b.id) return true;
-    if (titlesAlign(a.title, b.title) < 6) return false;
+    if (titlesAlign(a.title, b.title, a.artist) < 6) return false;
     if (!a.artist || !b.artist) return titlesAlign(a.title, b.title) >= 8;
     return artistsAlign(a.artist, b.artist) >= 1;
   }
@@ -673,18 +787,59 @@
     if (b && msg) b.textContent = msg;
   }
 
-  async function collectPlayable(pool, want, onProgress) {
-    const picked = [];
-    for (let i = 0; i < pool.length && picked.length < want; i++) {
-      if (onProgress) onProgress(picked.length, want);
+  function homeStatus(msg) {
+    const el = $("home-status");
+    if (el) el.textContent = msg || "";
+    if ($("daily-card-meta") && msg) $("daily-card-meta").textContent = msg;
+  }
+
+  async function collectPlayable(pool, want, onProgress, opts) {
+    const explore = !!(opts && opts.explore);
+    const recent = new Set(loadRecent());
+    const fresh = [];
+    const seen = [];
+    pool.forEach((t) => (recent.has(songKey(t)) ? seen : fresh).push(t));
+    const ordered = explore ? shuffle(fresh).concat(shuffle(seen)) : pool.slice();
+    const scanCap = (opts && opts.scanCap)
+      || (explore
+        ? Math.min(ordered.length, Math.max(90, want * 12))
+        : Math.min(ordered.length, Math.max(want * 8, 24)));
+    const found = [];
+    const retry = [];
+    let lookupFails = 0;
+    for (let i = 0; i < ordered.length; i++) {
+      const unusedHave = found.filter((t) => !recent.has(songKey(t))).length;
+      if (explore && unusedHave >= want) break;
+      if (!explore && found.length >= want) break;
+      if (explore && i >= scanCap && found.length >= want) break;
+      if (i >= scanCap && found.length >= want) break;
+      if (!explore && lookupFails >= 6 && !found.length) break;
+      if (onProgress) onProgress(found.length, want, ordered.length);
       try {
-        await resolvePreview(pool[i]);
-        picked.push(pool[i]);
-      } catch {
-        /* no matching preview — keep looking */
+        await resolvePreview(ordered[i]);
+        found.push(ordered[i]);
+        lookupFails = 0;
+      } catch (err) {
+        if (err && err.message === "lookup") {
+          retry.push(ordered[i]);
+          lookupFails += 1;
+        }
       }
     }
-    return picked;
+    for (let i = 0; i < retry.length && found.length < want; i++) {
+      if (onProgress) onProgress(found.length, want, ordered.length);
+      await sleep(350);
+      try {
+        await resolvePreview(retry[i]);
+        found.push(retry[i]);
+      } catch {
+        /* still no clip */
+      }
+    }
+    if (!explore) return found.slice(0, want);
+    const unused = shuffle(found.filter((t) => !recent.has(songKey(t))));
+    const used = shuffle(found.filter((t) => recent.has(songKey(t))));
+    return unused.concat(used).slice(0, want);
   }
 
   async function beginGame(tracks, opts) {
@@ -701,10 +856,11 @@
     let reserve = options.reserve || [];
     if (!queue) {
       const ordered = shuffle(tracks);
-      queue = await collectPlayable(ordered, want, (have, need) => {
-        setupStatus(`Finding playable clips… ${have}/${need}`);
-      });
-      reserve = ordered.filter((t) => !queue.includes(t));
+      queue = await collectPlayable(ordered, want, (have, need, total) => {
+        setupStatus(`Shuffling the list… ${have} ready · ${total || ordered.length} songs`);
+      }, { explore: options.kind !== "daily" });
+      reserve = shuffle(ordered.filter((t) => !queue.includes(t)));
+      if (options.kind !== "daily") rememberPlayed(queue);
     }
     if (!queue.length) {
       setupStatus("None of those songs had a matching store preview. Try another list.");
@@ -755,6 +911,8 @@
         finished: true,
         practice: false
       });
+    } else if (state.kind !== "daily") {
+      rememberPlayed(state.queue);
     }
     paintResults(lastRun);
     show("results");
@@ -841,58 +999,81 @@
   }
 
   async function startDaily(practice) {
-    if (!CATALOG.length) {
-      alert("Catalog failed to load.");
-      return;
+    if (state.busy) return;
+    state.busy = true;
+    const card = $("go-daily");
+    if (card) {
+      card.classList.add("is-busy");
+      card.blur();
     }
-    const rec = readDaily();
-    if (rec?.finished && !practice) {
-      lastRun = {
+    try {
+      if (!CATALOG.length) throw new Error("Catalog failed to load. Refresh and try again.");
+      homeStatus("Finding today’s five songs…");
+      const rec = readDaily();
+      if (rec?.finished && !practice) {
+        lastRun = {
+          kind: "daily",
+          practice: false,
+          date: rec.date || utcDateKey(),
+          score: rec.score || 0,
+          max: DAILY_SONGS * SONG_MAX,
+          log: rec.log || [],
+          queue: tracksFromIds(rec.queueIds || [])
+        };
+        homeStatus("");
+        paintResults(lastRun);
+        show("results");
+        setHash("/results");
+        return;
+      }
+      let queue = [];
+      let reserve = [];
+      if (rec?.queueIds?.length && !practice && !rec.finished) {
+        queue = tracksFromIds(rec.queueIds);
+      }
+      if (queue.length < DAILY_SONGS) {
+        const ordered = seededShuffle(CATALOG, utcDateKey()).map((t) => ({ ...t }));
+        queue = await collectPlayable(ordered, DAILY_SONGS, (have, need) => {
+          homeStatus(`Finding today’s songs… ${have}/${need}`);
+        }, { scanCap: 32 });
+        reserve = ordered.filter((t) => !queue.includes(t));
+      }
+      if (!queue.length) {
+        throw new Error("Could not load today’s clips. Check your connection and tap daily again.");
+      }
+      const ok = await beginGame(CATALOG.map((t) => ({ ...t })), {
         kind: "daily",
-        practice: false,
-        date: rec.date || utcDateKey(),
-        score: rec.score || 0,
-        max: DAILY_SONGS * SONG_MAX,
-        log: rec.log || [],
-        queue: tracksFromIds(rec.queueIds || [])
-      };
-      paintResults(lastRun);
-      show("results");
-      setHash("/results");
-      return;
-    }
-    let queue = [];
-    let reserve = [];
-    if (rec?.queueIds?.length && !practice && !rec.finished) {
-      queue = tracksFromIds(rec.queueIds);
-    }
-    if (queue.length < DAILY_SONGS) {
-      const ordered = seededShuffle(CATALOG, utcDateKey()).map((t) => ({ ...t }));
-      queue = await collectPlayable(ordered, DAILY_SONGS);
-      reserve = ordered.filter((t) => !queue.includes(t));
-    }
-    await beginGame(CATALOG.map((t) => ({ ...t })), {
-      kind: "daily",
-      practice: !!practice || !!rec?.finished,
-      mode: "start",
-      guessPool: CATALOG,
-      queue,
-      reserve,
-      want: DAILY_SONGS,
-      qi: !practice && rec && !rec.finished ? (rec.qi || 0) : 0,
-      score: !practice && rec && !rec.finished ? (rec.score || 0) : 0,
-      log: !practice && rec && !rec.finished ? (rec.log || []) : []
-    });
-    if (!practice && !rec?.finished) {
-      writeDaily({
-        date: utcDateKey(),
-        queueIds: state.queue.map((t) => t.id),
-        score: state.score,
-        log: state.log,
-        qi: state.qi,
-        finished: false,
-        practice: false
+        practice: !!practice || !!rec?.finished,
+        mode: "start",
+        guessPool: CATALOG,
+        queue,
+        reserve,
+        want: DAILY_SONGS,
+        qi: !practice && rec && !rec.finished ? (rec.qi || 0) : 0,
+        score: !practice && rec && !rec.finished ? (rec.score || 0) : 0,
+        log: !practice && rec && !rec.finished ? (rec.log || []) : []
       });
+      if (!ok) throw new Error("Could not start today’s daily. Try again.");
+      homeStatus("");
+      if (!practice && !rec?.finished) {
+        writeDaily({
+          date: utcDateKey(),
+          queueIds: state.queue.map((t) => t.id),
+          score: state.score,
+          log: state.log,
+          qi: state.qi,
+          finished: false,
+          practice: false
+        });
+      }
+    } catch (err) {
+      show("home");
+      setHash("/");
+      paintHome();
+      homeStatus(err.message || "Could not start daily.");
+    } finally {
+      state.busy = false;
+      if (card) card.classList.remove("is-busy");
     }
   }
 

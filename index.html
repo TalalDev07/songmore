@@ -14,7 +14,7 @@
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
-  <audio id="player" preload="auto"></audio>
+  <audio id="player" preload="auto" playsinline webkit-playsinline></audio>
 
   <div id="app">
     <header class="top">
@@ -56,6 +56,7 @@
         Each song starts at <strong>1000</strong>. Hearing a second costs <strong>100</strong>.
         A wrong guess costs <strong>100</strong>. Give up and that song is zero.
       </p>
+      <p class="hint" id="home-status"></p>
       <p class="countdown" id="daily-countdown"></p>
     </section>
 
