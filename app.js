@@ -20,6 +20,7 @@
   let ytWantPlay = false;
   let ytPlayGen = 0;
   let ytPlayersWait = null;
+  let ytAdWatch = 0;
   const previewCache = new Map();
   let stopTimer = 0;
   let suggestIndex = 0;
@@ -85,6 +86,7 @@
 
   function stopClip() {
     clearTimeout(stopTimer);
+    clearInterval(ytAdWatch);
     ytWantPlay = false;
     player.pause();
     try {
@@ -601,7 +603,7 @@
           },
           onStateChange: (e) => {
             if (slot === ytNext) {
-              if (e.data === 1) {
+              if (e.data === 1 && inActualClip(slot)) {
                 try {
                   slot.mute();
                   slot.pauseVideo();
@@ -613,8 +615,9 @@
             if (slot !== ytLive) return;
             if (e.data === 1) {
               setSpin(true);
-              if (ytWantPlay) {
+              if (ytWantPlay && inActualClip(slot)) {
                 ytWantPlay = false;
+                clearInterval(ytAdWatch);
                 armClipStop(clipLen());
               }
             } else if (e.data === 2 || e.data === 0) {
@@ -654,6 +657,27 @@
   function warmUpcoming() {
     const upcoming = ytId(state.queue[state.qi + 1]);
     if (upcoming) prefetchVideo(upcoming);
+  }
+
+  function inActualClip(p) {
+    if (!p || !p.getCurrentTime) return false;
+    const t = Number(p.getCurrentTime()) || 0;
+    return t >= clipStart() - 0.4;
+  }
+
+  function watchForClip() {
+    clearInterval(ytAdWatch);
+    ytAdWatch = setInterval(() => {
+      if (!ytWantPlay || !ytLive) {
+        clearInterval(ytAdWatch);
+        return;
+      }
+      if (ytLive.getPlayerState && ytLive.getPlayerState() === 1 && inActualClip(ytLive)) {
+        clearInterval(ytAdWatch);
+        ytWantPlay = false;
+        armClipStop(clipLen());
+      }
+    }, 120);
   }
 
   function armClipStop(len) {
@@ -710,10 +734,11 @@
       return false;
     }
     setSpin(true);
-    const st = ytLive.getPlayerState ? ytLive.getPlayerState() : -1;
-    if (st === 1) {
+    if (ytLive.getPlayerState && ytLive.getPlayerState() === 1 && inActualClip(ytLive)) {
       ytWantPlay = false;
       armClipStop(len);
+    } else {
+      watchForClip();
     }
     return true;
   }
